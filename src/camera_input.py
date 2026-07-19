@@ -32,13 +32,13 @@ class CameraInput:
                 if not success or frame is None:
                     raise RuntimeError(f"Unable to capture camera")
                 
-                frame = cv2.flip(frame, 1)
+                # frame = cv2.flip(frame, 1)
                 yield frame
         except Exception as e:
             logging.exception("Camera loop failed")
             raise
         finally:
-            self.close(self)
+            self.close()
     
     def close(self) -> None:
         if self.camera is not None:

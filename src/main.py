@@ -1,19 +1,15 @@
-from camera_input import CameraInput
-import cv2
+from src.camera_input import CameraInput
+from src.camera_runtime import CameraRuntime
+
 
 if __name__ == "__main__":
-    camera = CameraInput("../data/avt.jpg",0)
-    # face = camera.face_from_path()
-    # cv2.imshow("face",face)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    for frame in camera.face_from_camera():
-        cv2.imshow("Camera", frame)
+    camera = CameraInput(camera_index=0)
 
-        key = cv2.waitKey(1) & 0xFF
+    runtime = CameraRuntime(
+        camera=camera,
+        required_frames=5,
+        sample_interval=0.15,
+        session_timeout=2.0,
+    )
 
-        if key == ord("q") or key == ord("\x1b"):
-            break
-
-    cv2.destroyAllWindows()
-    
+    runtime.run()
