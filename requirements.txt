@@ -2,3 +2,4 @@ pathlib
 opencv-python
 numpy
 pytest
+opencv-contrib-python
