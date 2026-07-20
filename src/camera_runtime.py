@@ -5,12 +5,15 @@ import cv2
 import numpy as np
 
 from src.camera_input import CameraInput
-
+from src.preprocessing.detectors.yunet_detector import YuNetFaceDetector
+from src.preprocessing.models import FaceDetection
+from src.preprocessing.visualization.face_renderer import FaceRenderer
 
 class CameraRuntime:
     def __init__(
         self,
         camera: CameraInput,
+        face_detector: YuNetFaceDetector,
         required_frames: int = 5,
         sample_interval: float = 0.15,
         session_timeout: float = 2.0,
@@ -23,6 +26,7 @@ class CameraRuntime:
         self.selected_frames = deque(maxlen=required_frames) # Queue to store the collected frames
         self.session_started_at: float | None = None    # Timestamp of the first collected frame 
         self.last_sampled_at: float | None = None   # Timestamp of the most recently collected frame
+        self.face_detector = face_detector
 
     def reset_session(self) -> None:
         """Clear the session data"""
@@ -60,21 +64,49 @@ class CameraRuntime:
         """Check the session completed?"""
         return len(self.selected_frames) == self.required_frames
 
+    @staticmethod
+    def get_detection_status(
+        detections: list[FaceDetection],
+    ) -> tuple[str, tuple[int, int, int]]:
+        if not detections:
+            return "No face detected", (0, 0, 255)
+
+        if len(detections) > 1:
+            return "Multiple faces detected", (0, 165, 255)
+
+        return "Face detected", (0, 255, 0)
+    
     def run(self) -> None:
-        """Run the pipeline"""
+        """Run the camera capture and face detection pipeline."""
         self.reset_session()
 
         try:
             for raw_frame in self.camera.face_from_camera():
                 now = time.monotonic()
 
+                # Flip trước để tạo ảnh hiển thị.
                 preview = cv2.flip(raw_frame, 1)
+
+                # Detect và vẽ trực tiếp theo tọa độ của preview.
+                detections = self.face_detector.detect(preview)
+
+                preview = FaceRenderer.draw(
+                    preview,
+                    detections,
+                )
 
                 if self.session_has_timed_out(now):
                     print("Session timeout. Resetting...")
                     self.reset_session()
 
-                if self.should_sample(now):
+                status, status_color = (
+                    self.get_detection_status(detections)
+                )
+
+                if (
+                    len(detections) == 1
+                    and self.should_sample(now)
+                ):
                     self.collect_frame(raw_frame, now)
 
                     print(
@@ -83,6 +115,7 @@ class CameraRuntime:
                         f"{self.required_frames}"
                     )
 
+                # 5. Hiển thị số frame đã thu.
                 cv2.putText(
                     preview,
                     (
@@ -96,11 +129,30 @@ class CameraRuntime:
                     2,
                 )
 
+                # 6. Hiển thị trạng thái detection.
+                cv2.putText(
+                    preview,
+                    status,
+                    (20, 75),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    status_color,
+                    2,
+                )
+
                 cv2.imshow("TinyFace Verify", preview)
 
                 if self.is_session_complete():
+                    frames = [
+                        frame.copy()
+                        for frame in self.selected_frames
+                    ]
+
                     print("Session completed")
-                    # sent frame to preproccess and verify after
+
+                    # Bước tiếp theo:
+                    # result = self.verification_service.verify(frames)
+
                     self.reset_session()
 
                 key = cv2.waitKey(1) & 0xFF
@@ -108,15 +160,17 @@ class CameraRuntime:
                 if key == ord("q") or key == 27:
                     break
 
-                if cv2.getWindowProperty(
-                    "TinyFace Verify",
-                    cv2.WND_PROP_VISIBLE,
-                ) < 1:
-                    break
-                
                 if key == ord("r"):
                     self.reset_session()
-                    
+
+                if (
+                    cv2.getWindowProperty(
+                        "TinyFace Verify",
+                        cv2.WND_PROP_VISIBLE,
+                    )
+                    < 1
+                ):
+                    break
 
         finally:
             self.camera.close()
