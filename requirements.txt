@@ -1,3 +1,4 @@
 pathlib
 opencv-python
 numpy
+pytest
