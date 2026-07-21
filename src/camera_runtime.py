@@ -7,7 +7,7 @@ import numpy as np
 from src.camera_input import CameraInput
 from src.preprocessing.detectors.yunet_detector import YuNetFaceDetector
 from src.preprocessing.models import FaceDetection
-from src.preprocessing.visualization.face_renderer import FaceRenderer
+from src.visualization.camera_rerender import CameraRenderer
 
 class CameraRuntime:
     def __init__(
@@ -90,11 +90,6 @@ class CameraRuntime:
                 # Detect và vẽ trực tiếp theo tọa độ của preview.
                 detections = self.face_detector.detect(preview)
 
-                preview = FaceRenderer.draw(
-                    preview,
-                    detections,
-                )
-
                 if self.session_has_timed_out(now):
                     print("Session timeout. Resetting...")
                     self.reset_session()
@@ -116,28 +111,13 @@ class CameraRuntime:
                     )
 
                 # 5. Hiển thị số frame đã thu.
-                cv2.putText(
+                preview = CameraRenderer.render(
                     preview,
-                    (
-                        f"Collected: {len(self.selected_frames)}"
-                        f"/{self.required_frames}"
-                    ),
-                    (20, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (0, 255, 0),
-                    2,
-                )
-
-                # 6. Hiển thị trạng thái detection.
-                cv2.putText(
-                    preview,
+                    detections,
+                    len(self.selected_frames),
+                    self.required_frames,
                     status,
-                    (20, 75),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
                     status_color,
-                    2,
                 )
 
                 cv2.imshow("TinyFace Verify", preview)

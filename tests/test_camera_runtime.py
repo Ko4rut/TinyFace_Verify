@@ -188,3 +188,44 @@ def test_selected_frames_does_not_exceed_required_frames():
     first_remaining_frame = runtime.selected_frames[0]
 
     assert np.all(first_remaining_frame == 1)
+
+
+@patch("src.camera_runtime.cv2.destroyAllWindows")
+@patch("src.camera_runtime.cv2.waitKey", return_value=ord("q"))
+@patch("src.camera_runtime.cv2.imshow")
+@patch("src.camera_runtime.CameraRenderer.render")
+def test_run_delegates_preview_rendering_to_camera_renderer(
+    mock_render,
+    mock_imshow,
+    _mock_wait_key,
+    _mock_destroy_windows,
+):
+    raw_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    rendered_frame = np.ones((10, 10, 3), dtype=np.uint8)
+    camera = Mock()
+    camera.face_from_camera.return_value = iter([raw_frame])
+    face_detector = Mock()
+    face_detector.detect.return_value = []
+    mock_render.return_value = rendered_frame
+    runtime = CameraRuntime(
+        camera=camera,
+        face_detector=face_detector,
+        required_frames=5,
+    )
+
+    runtime.run()
+
+    preview = face_detector.detect.call_args.args[0]
+    mock_render.assert_called_once_with(
+        preview,
+        [],
+        0,
+        5,
+        "No face detected",
+        (0, 0, 255),
+    )
+    mock_imshow.assert_called_once_with(
+        "TinyFace Verify",
+        rendered_frame,
+    )
+    camera.close.assert_called_once_with()
