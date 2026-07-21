@@ -1,8 +1,9 @@
-from src.camera_input import CameraInput
-from src.camera_runtime import CameraRuntime
-from src.preprocessing.detectors.yunet_detector import (
+from src.camera.camera_input import CameraInput
+from src.camera.camera_runtime import CameraRuntime
+from src.detection.yunet_detector import (
     YuNetFaceDetector,
 )
+from src.capture.frame_session import FrameSession
 
 
 camera = CameraInput(camera_index=0)
@@ -14,10 +15,12 @@ face_detector = YuNetFaceDetector(
     ),
 )
 
+frames = FrameSession()
+
 runtime = CameraRuntime(
     camera=camera,
     face_detector=face_detector,
-    required_frames=5,
+    session=frames,
 )
 
 runtime.run()

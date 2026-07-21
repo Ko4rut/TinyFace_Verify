@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from src.preprocessing.models import FaceDetection
+from src.detection.models import FaceDetection
 
 
 class FaceRenderer:

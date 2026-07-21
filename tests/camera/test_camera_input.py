@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, patch
 import numpy as np
-from src.camera_input import CameraInput
+from src.camera.camera_input import CameraInput
 from pathlib import Path
 
 def test_init_opens_correct_camera_index():
