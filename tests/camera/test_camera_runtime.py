@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, patch
 import numpy as np
-from src.camera_runtime import CameraRuntime
+from src.camera.camera_runtime import CameraRuntime
 from pathlib import Path
 
 

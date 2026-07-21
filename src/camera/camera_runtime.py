@@ -4,9 +4,9 @@ import time
 import cv2
 import numpy as np
 
-from src.camera_input import CameraInput
-from src.preprocessing.detectors.yunet_detector import YuNetFaceDetector
-from src.preprocessing.models import FaceDetection
+from src.camera.camera_input import CameraInput
+from src.detection.yunet_detector import YuNetFaceDetector
+from src.detection.models import FaceDetection
 from src.visualization.camera_rerender import CameraRenderer
 
 class CameraRuntime:

@@ -1,10 +1,10 @@
 import cv2
 import numpy as np
 
-from src.preprocessing.detectors.yunet_mapper import (
+from src.detection.yunet_mapper import (
     map_yunet_detection,
 )
-from src.preprocessing.models import FaceDetection
+from src.detection.models import FaceDetection
 
 
 class YuNetFaceDetector:

@@ -1,6 +1,6 @@
-from src.camera_input import CameraInput
-from src.camera_runtime import CameraRuntime
-from src.preprocessing.detectors.yunet_detector import (
+from src.camera.camera_input import CameraInput
+from src.camera.camera_runtime import CameraRuntime
+from src.detection.yunet_detector import (
     YuNetFaceDetector,
 )
 

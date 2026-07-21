@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.preprocessing.models import FaceDetection
+from src.detection.models import FaceDetection
 
 
 def map_yunet_detection(
