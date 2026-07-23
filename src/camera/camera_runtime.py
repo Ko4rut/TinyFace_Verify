@@ -83,11 +83,11 @@ class CameraRuntime:
                 ):
                     self.session.add(preview, now)
 
-                    print(
-                        f"Collected: {self.session.collected_count}/"
-                        f"{self.session.required_frames}"
-                    )
-                    
+                    # print(
+                    #     f"Collected: {self.session.collected_count}/"
+                    #     f"{self.session.required_frames}"
+                    # )
+
                 preview = CameraRenderer.render(
                     frame=preview,
                     detections=detections,
