@@ -70,10 +70,10 @@ class CameraRuntime:
                 ):
                     self.session.add(preview, now)
 
-                    print(
-                        f"Collected: {self.session.collected_count}/"
-                        f"{self.session.required_frames}"
-                    )
+                    # print(
+                    #     f"Collected: {self.session.collected_count}/"
+                    #     f"{self.session.required_frames}"
+                    # )
 
                 preview = CameraRenderer.render(
                     frame=preview,
@@ -87,7 +87,7 @@ class CameraRuntime:
                 cv2.imshow(self.WINDOW_NAME, preview)
 
                 if self.session.is_complete:
-                    print("Session completed")
+                    # print("Session completed")
 
                     # frames = self.session.get_frames()
                     # result = self.verification_service.verify(frames)
