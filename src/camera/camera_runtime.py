@@ -9,6 +9,7 @@ from src.detection.yunet_detector import YuNetFaceDetector
 from src.draw.camera_renderer import CameraRenderer
 from src.selection.face_selector import FaceSelector
 from src.selection.models import FaceSelectionResult, SelectionStatus
+from src.sampleValidation.face_sample_validator import FaceSampleValidator
 
 class CameraRuntime:
     WINDOW_NAME = "TinyFace Verify"
@@ -57,6 +58,11 @@ class CameraRuntime:
                 now = time.monotonic()
 
                 preview = cv2.flip(raw_frame, 1)
+                
+                if self.session.has_timed_out(now):
+                    print("Session timeout. Resetting...")
+                    self.session.reset()
+                    
                 detections = self.face_detector.detect(preview)
 
 
@@ -69,9 +75,6 @@ class CameraRuntime:
                                     if selection.status is SelectionStatus.SELECTED
                                     else None
                                 )
-                if self.session.has_timed_out(now):
-                    print("Session timeout. Resetting...")
-                    self.session.reset()
 
                 status, status_color = self.get_selection_status(
                     selection
@@ -82,7 +85,7 @@ class CameraRuntime:
                     and self.session.should_sample(now)
                 ):
                     self.session.add(preview, now)
-
+                    
                     # print(
                     #     f"Collected: {self.session.collected_count}/"
                     #     f"{self.session.required_frames}"
