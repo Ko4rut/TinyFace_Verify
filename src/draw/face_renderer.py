@@ -21,18 +21,18 @@ class FaceRenderer:
         for detection in detections:
             is_selected = detection is selected_face
 
-            FaceRenderer._draw_detection(
-                frame=frame,
+            cls._draw_detection(
+                frame=annotated_frame,
                 detection=detection,
                 is_selected=is_selected,
             )
-            
-            FaceRenderer._draw_landmarks(
-                frame=frame,
-                detection=detection
+
+            cls._draw_landmarks(
+                frame=annotated_frame,
+                detection=detection,
             )
 
-        return frame
+        return annotated_frame
 
     @staticmethod
     def _draw_detection(
