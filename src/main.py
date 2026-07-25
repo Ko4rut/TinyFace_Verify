@@ -8,6 +8,7 @@ from src.selection.rule_based_face_selector import RuleBasedFaceSelector
 
 camera = CameraInput(camera_index=0)
 
+# adding detector
 face_detector = YuNetFaceDetector(
     model_path=(
         "models/"
@@ -17,6 +18,7 @@ face_detector = YuNetFaceDetector(
 
 frames = FrameSession()
 
+# adding selector
 selector = RuleBasedFaceSelector(
     area_weight=0.6,
     center_weight=0.4,
