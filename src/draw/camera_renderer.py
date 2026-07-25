@@ -14,12 +14,15 @@ class CameraRenderer:
         required_frames: int,
         status: str,
         status_color: tuple[int, int, int],
+        selected_face: FaceDetection | None,
+
     ) -> np.ndarray:
         preview = frame.copy()
 
         preview = FaceRenderer.draw(
             preview,
             detections,
+            selected_face=selected_face,
         )
 
         cv2.putText(
