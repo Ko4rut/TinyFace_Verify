@@ -1,0 +1,176 @@
+import cv2
+import numpy as np
+
+
+class FacePanelRenderer:
+    PANEL_HEIGHT = 160
+    PADDING = 15
+    CROP_SIZE = 130
+
+    VALID_COLOR = (0, 255, 0)
+    INVALID_COLOR = (0, 165, 255)
+    EMPTY_COLOR = (100, 100, 100)
+    TEXT_COLOR = (230, 230, 230)
+    BACKGROUND_COLOR = (30, 30, 30)
+
+    @classmethod
+    def draw(
+        cls,
+        frame_width: int,
+        face_crop: np.ndarray | None,
+        is_valid_sample: bool,
+        status: str,
+    ) -> np.ndarray:
+        panel = np.full(
+            (
+                cls.PANEL_HEIGHT,
+                frame_width,
+                3,
+            ),
+            cls.BACKGROUND_COLOR,
+            dtype=np.uint8,
+        )
+
+        cls._draw_face_crop(
+            panel=panel,
+            face_crop=face_crop,
+            is_valid_sample=is_valid_sample,
+        )
+
+        cls._draw_information(
+            panel=panel,
+            face_crop=face_crop,
+            is_valid_sample=is_valid_sample,
+            status=status,
+        )
+
+        return panel
+
+    @classmethod
+    def _draw_face_crop(
+        cls,
+        panel: np.ndarray,
+        face_crop: np.ndarray | None,
+        is_valid_sample: bool,
+    ) -> None:
+        x1 = cls.PADDING
+        y1 = cls.PADDING
+        x2 = x1 + cls.CROP_SIZE
+        y2 = y1 + cls.CROP_SIZE
+
+        if face_crop is None or face_crop.size == 0:
+            cv2.rectangle(
+                panel,
+                (x1, y1),
+                (x2, y2),
+                cls.EMPTY_COLOR,
+                2,
+            )
+
+            cv2.putText(
+                panel,
+                "NO FACE",
+                (x1 + 20, y1 + 70),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                cls.EMPTY_COLOR,
+                1,
+            )
+            return
+
+        crop_preview = cls._resize_with_padding(
+            image=face_crop,
+            target_size=cls.CROP_SIZE,
+        )
+
+        panel[y1:y2, x1:x2] = crop_preview
+
+        border_color = (
+            cls.VALID_COLOR
+            if is_valid_sample
+            else cls.INVALID_COLOR
+        )
+
+        cv2.rectangle(
+            panel,
+            (x1, y1),
+            (x2, y2),
+            border_color,
+            3,
+        )
+
+    @classmethod
+    def _draw_information(
+        cls,
+        panel: np.ndarray,
+        face_crop: np.ndarray | None,
+        is_valid_sample: bool,
+        status: str,
+    ) -> None:
+        text_x = cls.PADDING + cls.CROP_SIZE + 25
+
+        if face_crop is None:
+            sample_text = "WAITING FOR FACE"
+            sample_color = cls.EMPTY_COLOR
+        elif is_valid_sample:
+            sample_text = "READY TO COLLECT"
+            sample_color = cls.VALID_COLOR
+        else:
+            sample_text = "NOT READY"
+            sample_color = cls.INVALID_COLOR
+
+        cv2.putText(
+            panel,
+            sample_text,
+            (text_x, 55),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            sample_color,
+            2,
+        )
+
+        cv2.putText(
+            panel,
+            status,
+            (text_x, 95),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            cls.TEXT_COLOR,
+            1,
+        )
+
+    @classmethod
+    def _resize_with_padding(
+        cls,
+        image: np.ndarray,
+        target_size: int,
+    ) -> np.ndarray:
+        height, width = image.shape[:2]
+
+        scale = min(
+            target_size / width,
+            target_size / height,
+        )
+
+        resized_width = max(1, int(width * scale))
+        resized_height = max(1, int(height * scale))
+
+        resized = cv2.resize(
+            image,
+            (resized_width, resized_height),
+        )
+
+        canvas = np.zeros(
+            (target_size, target_size, 3),
+            dtype=np.uint8,
+        )
+
+        x_offset = (target_size - resized_width) // 2
+        y_offset = (target_size - resized_height) // 2
+
+        canvas[
+            y_offset:y_offset + resized_height,
+            x_offset:x_offset + resized_width,
+        ] = resized
+
+        return canvas
