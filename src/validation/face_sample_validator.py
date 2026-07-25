@@ -1,6 +1,8 @@
 from src.detection.models import FaceDetection
-from src.utils.face_helper import compute_width_height
+from src.utils.face_helper import compute_width_height,crop_face
 
+import numpy as np 
+import cv2
 class FaceSampleValidator:
     def __init__(self, min_face_area_ratio: float, 
                 min_edge_margin_ratio: float, min_blur_score: float) -> None:
@@ -37,9 +39,44 @@ class FaceSampleValidator:
             return False
         return True
     
-    def min_blur_validate(self, face: FaceDetection) -> bool:
-        """
-        Validate face if its blur
-        """
-        pass
-        
+    def validate_blur(
+        self,
+        frame: np.ndarray,
+        face: FaceDetection,
+    ) -> bool:
+        face_crop = crop_face(frame, face)
+
+        if face_crop is None:
+            return False
+
+        gray_face = cv2.cvtColor(
+            face_crop,
+            cv2.COLOR_BGR2GRAY,
+        )
+
+        sharpness_score = cv2.Laplacian(
+            gray_face,
+            cv2.CV_64F,
+        ).var()
+
+        return sharpness_score >= self.min_blur_score
+    
+    def validate(self, frame: np.ndarray, face: FaceDetection) -> bool:
+        if frame is None or frame.size == 0:
+            return False
+
+        frame_height, frame_width = frame.shape[:2]
+
+        return (
+            self.validate_face_area_ratio(
+                face,
+                frame_width,
+                frame_height,
+            )
+            and self.face_edge_margin_ratio_validate(
+                face,
+                frame_width,
+                frame_height,
+            )
+            and self.validate_blur(frame, face)
+        )

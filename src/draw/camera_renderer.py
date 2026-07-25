@@ -3,7 +3,7 @@ import numpy as np
 
 from src.detection.models import FaceDetection
 from src.draw.face_renderer import FaceRenderer
-
+from src.draw.face_panel_renderer import FacePanelRenderer
 
 class CameraRenderer:
     @staticmethod
@@ -15,6 +15,8 @@ class CameraRenderer:
         status: str,
         status_color: tuple[int, int, int],
         selected_face: FaceDetection | None,
+        face_crop: np.ndarray | None,
+        is_valid_sample: bool,
 
     ) -> np.ndarray:
         preview = frame.copy()
@@ -44,5 +46,10 @@ class CameraRenderer:
             status_color,
             2,
         )
-
-        return preview
+        panel = FacePanelRenderer.draw(
+            frame_width=preview.shape[1],
+            face_crop=face_crop,
+            is_valid_sample=is_valid_sample,
+            status=status,
+        )
+        return np.vstack((preview, panel))

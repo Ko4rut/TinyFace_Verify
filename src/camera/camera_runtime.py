@@ -9,7 +9,8 @@ from src.detection.yunet_detector import YuNetFaceDetector
 from src.draw.camera_renderer import CameraRenderer
 from src.selection.face_selector import FaceSelector
 from src.selection.models import FaceSelectionResult, SelectionStatus
-from src.sampleValidation.face_sample_validator import FaceSampleValidator
+from src.validation.face_sample_validator import FaceSampleValidator
+from src.utils.face_helper import crop_face
 
 class CameraRuntime:
     WINDOW_NAME = "TinyFace Verify"
@@ -19,12 +20,14 @@ class CameraRuntime:
         camera: CameraInput,
         face_detector: YuNetFaceDetector,
         session: FrameSession,
-        face_selector: FaceSelector
+        face_selector: FaceSelector,
+        face_validator: FaceSampleValidator
     ) -> None:
         self.camera = camera
         self.face_detector = face_detector
         self.session = session
         self.face_selector = face_selector
+        self.face_validator = face_validator
 
     @staticmethod
     def get_selection_status(
@@ -75,15 +78,31 @@ class CameraRuntime:
                                     if selection.status is SelectionStatus.SELECTED
                                     else None
                                 )
+                face_crop = (
+                    crop_face(preview, selected_face)
+                    if selected_face is not None
+                    else None
+                )
 
+                is_valid_sample = (
+                    selected_face is not None
+                    and self.face_validator.validate(
+                        frame=preview,
+                        face=selected_face,
+                    )
+                )
                 status, status_color = self.get_selection_status(
                     selection
                 )
-
-                if (
-                    selection.status is SelectionStatus.SELECTED
-                    and self.session.should_sample(now)
-                ):
+                is_valid_sample = (
+                    selected_face is not None
+                    and self.face_validator.validate(
+                        frame=preview,
+                        face=selected_face,
+                    )
+                )
+                
+                if is_valid_sample and self.session.should_sample(now):
                     self.session.add(preview, now)
                     
                     # print(
@@ -92,14 +111,16 @@ class CameraRuntime:
                     # )
 
                 preview = CameraRenderer.render(
-                    frame=preview,
-                    detections=detections,
-                    selected_face=selected_face,
-                    collected_count=self.session.collected_count,
-                    required_frames=self.session.required_frames,
-                    status=status,
-                    status_color=status_color,
-                )
+                frame=preview,
+                detections=detections,
+                selected_face=selected_face,
+                face_crop=face_crop,
+                is_valid_sample=is_valid_sample,
+                collected_count=self.session.collected_count,
+                required_frames=self.session.required_frames,
+                status=status,
+                status_color=status_color,
+            )
                 cv2.imshow(self.WINDOW_NAME, preview)
 
                 if self.session.is_complete:
