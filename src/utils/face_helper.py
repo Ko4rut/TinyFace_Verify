@@ -1,6 +1,7 @@
 from src.detection.models import FaceDetection
 import numpy as np
 from src.detection.models import FaceDetection
+from src.utils.models import CroppedFace
 
 def compute_width_height(face: FaceDetection) -> tuple[int,int]:
     x1, y1, x2, y2 = face.bbox
@@ -11,7 +12,7 @@ def compute_width_height(face: FaceDetection) -> tuple[int,int]:
 def crop_face(
     frame: np.ndarray,
     face: FaceDetection,
-) -> np.ndarray | None:
+) -> CroppedFace | None:
     if frame is None or frame.size == 0:
         return None
 
@@ -26,9 +27,21 @@ def crop_face(
     if x2 <= x1 or y2 <= y1:
         return None
 
-    face_crop = frame[y1:y2, x1:x2].copy()
+    image = frame[y1:y2, x1:x2].copy()
 
-    if face_crop.size == 0:
+    if image.size == 0:
         return None
 
-    return face_crop
+    landmarks = np.asarray(
+        face.landmarks,
+        dtype=np.float32,
+    ).reshape(5, 2).copy()
+
+    # Chuyển từ hệ tọa độ frame sang hệ tọa độ crop
+    landmarks[:, 0] -= x1
+    landmarks[:, 1] -= y1
+
+    return CroppedFace(
+        image=image,
+        landmarks=landmarks,
+    )
