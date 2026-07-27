@@ -17,6 +17,7 @@ class CameraRenderer:
         selected_face: FaceDetection | None,
         face_crop: np.ndarray | None,
         is_valid_sample: bool,
+        face_landmarks: np.ndarray | None,
 
     ) -> np.ndarray:
         preview = frame.copy()
@@ -46,10 +47,11 @@ class CameraRenderer:
             status_color,
             2,
         )
-        panel = FacePanelRenderer.draw(
-            frame_width=preview.shape[1],
+        face_panel = FacePanelRenderer.draw(
+            frame_width=frame.shape[1],
             face_crop=face_crop,
+            face_landmarks=face_landmarks,
             is_valid_sample=is_valid_sample,
             status=status,
         )
-        return np.vstack((preview, panel))
+        return np.vstack((preview, face_panel))

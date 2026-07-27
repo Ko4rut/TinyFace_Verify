@@ -195,3 +195,50 @@ class FacePanelRenderer:
         ] = resized
 
         return canvas, scale, x_offset, y_offset
+    
+    @classmethod
+    def _draw_information(
+        cls,
+        panel: np.ndarray,
+        face_crop: np.ndarray | None,
+        is_valid_sample: bool,
+        status: str,
+    ) -> None:
+        text_x = cls.PADDING + cls.CROP_SIZE + 25
+
+        has_face_crop = (
+            face_crop is not None
+            and face_crop.size > 0
+        )
+
+        if not has_face_crop:
+            sample_text = "WAITING FOR FACE"
+            sample_color = cls.EMPTY_COLOR
+        elif is_valid_sample:
+            sample_text = "READY TO COLLECT"
+            sample_color = cls.VALID_COLOR
+        else:
+            sample_text = "NOT READY"
+            sample_color = cls.INVALID_COLOR
+
+        cv2.putText(
+            panel,
+            sample_text,
+            (text_x, 55),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            sample_color,
+            2,
+            cv2.LINE_AA,
+        )
+
+        cv2.putText(
+            panel,
+            status,
+            (text_x, 95),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            cls.TEXT_COLOR,
+            1,
+            cv2.LINE_AA,
+        )
