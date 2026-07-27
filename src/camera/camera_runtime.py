@@ -122,8 +122,8 @@ class CameraRuntime:
                     and self.session.should_sample(now)
                 ):
                     self.session.add(
-                        frame=preview.copy(),
-                        sampled_at=now,
+                        preview.copy(),
+                        now,
                     )
 
                     print(
