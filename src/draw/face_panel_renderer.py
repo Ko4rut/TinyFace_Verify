@@ -19,6 +19,7 @@ class FacePanelRenderer:
         frame_width: int,
         face_crop: np.ndarray | None,
         is_valid_sample: bool,
+        face_landmarks: np.ndarray | None,
         status: str,
     ) -> np.ndarray:
         panel = np.full(
@@ -34,6 +35,7 @@ class FacePanelRenderer:
         cls._draw_face_crop(
             panel=panel,
             face_crop=face_crop,
+            face_landmarks=face_landmarks,
             is_valid_sample=is_valid_sample,
         )
 
@@ -51,6 +53,7 @@ class FacePanelRenderer:
         cls,
         panel: np.ndarray,
         face_crop: np.ndarray | None,
+        face_landmarks: np.ndarray | None,
         is_valid_sample: bool,
     ) -> None:
         x1 = cls.PADDING
@@ -78,10 +81,21 @@ class FacePanelRenderer:
             )
             return
 
-        crop_preview = cls._resize_with_padding(
-            image=face_crop,
-            target_size=cls.CROP_SIZE,
+        crop_preview, scale, x_offset, y_offset = (
+            cls._resize_with_padding(
+                image=face_crop,
+                target_size=cls.CROP_SIZE,
+            )
         )
+
+        if face_landmarks is not None:
+            cls._draw_landmarks(
+                image=crop_preview,
+                landmarks=face_landmarks,
+                scale=scale,
+                x_offset=x_offset,
+                y_offset=y_offset,
+            )
 
         panel[y1:y2, x1:x2] = crop_preview
 
@@ -99,52 +113,59 @@ class FacePanelRenderer:
             3,
         )
 
-    @classmethod
-    def _draw_information(
-        cls,
-        panel: np.ndarray,
-        face_crop: np.ndarray | None,
-        is_valid_sample: bool,
-        status: str,
+    @staticmethod
+    def _draw_landmarks(
+        image: np.ndarray,
+        landmarks: np.ndarray,
+        scale: float,
+        x_offset: int,
+        y_offset: int,
     ) -> None:
-        text_x = cls.PADDING + cls.CROP_SIZE + 25
+        points = np.asarray(
+            landmarks,
+            dtype=np.float32,
+        ).reshape(-1, 2)
 
-        if face_crop is None:
-            sample_text = "WAITING FOR FACE"
-            sample_color = cls.EMPTY_COLOR
-        elif is_valid_sample:
-            sample_text = "READY TO COLLECT"
-            sample_color = cls.VALID_COLOR
-        else:
-            sample_text = "NOT READY"
-            sample_color = cls.INVALID_COLOR
+        colors = [
+            (255, 0, 0),      # mắt 1
+            (0, 255, 255),    # mắt 2
+            (0, 0, 255),      # mũi
+            (255, 0, 255),    # khóe miệng 1
+            (0, 255, 0),      # khóe miệng 2
+        ]
 
-        cv2.putText(
-            panel,
-            sample_text,
-            (text_x, 55),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            sample_color,
-            2,
-        )
+        for index, (landmark_x, landmark_y) in enumerate(points):
+            draw_x = int(landmark_x * scale + x_offset)
+            draw_y = int(landmark_y * scale + y_offset)
 
-        cv2.putText(
-            panel,
-            status,
-            (text_x, 95),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            cls.TEXT_COLOR,
-            1,
-        )
+            color = colors[index % len(colors)]
+
+            cv2.circle(
+                image,
+                (draw_x, draw_y),
+                3,
+                color,
+                -1,
+                lineType=cv2.LINE_AA,
+            )
+
+            cv2.putText(
+                image,
+                str(index),
+                (draw_x + 4, draw_y - 4),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.3,
+                color,
+                1,
+                cv2.LINE_AA,
+            )
 
     @classmethod
     def _resize_with_padding(
         cls,
         image: np.ndarray,
         target_size: int,
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, float, int, int]:
         height, width = image.shape[:2]
 
         scale = min(
@@ -173,4 +194,51 @@ class FacePanelRenderer:
             x_offset:x_offset + resized_width,
         ] = resized
 
-        return canvas
+        return canvas, scale, x_offset, y_offset
+    
+    @classmethod
+    def _draw_information(
+        cls,
+        panel: np.ndarray,
+        face_crop: np.ndarray | None,
+        is_valid_sample: bool,
+        status: str,
+    ) -> None:
+        text_x = cls.PADDING + cls.CROP_SIZE + 25
+
+        has_face_crop = (
+            face_crop is not None
+            and face_crop.size > 0
+        )
+
+        if not has_face_crop:
+            sample_text = "WAITING FOR FACE"
+            sample_color = cls.EMPTY_COLOR
+        elif is_valid_sample:
+            sample_text = "READY TO COLLECT"
+            sample_color = cls.VALID_COLOR
+        else:
+            sample_text = "NOT READY"
+            sample_color = cls.INVALID_COLOR
+
+        cv2.putText(
+            panel,
+            sample_text,
+            (text_x, 55),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            sample_color,
+            2,
+            cv2.LINE_AA,
+        )
+
+        cv2.putText(
+            panel,
+            status,
+            (text_x, 95),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            cls.TEXT_COLOR,
+            1,
+            cv2.LINE_AA,
+        )

@@ -4,13 +4,16 @@ import cv2
 
 from src.camera.camera_input import CameraInput
 from src.capture.frame_session import FrameSession
-from src.detection.models import FaceDetection
 from src.detection.yunet_detector import YuNetFaceDetector
 from src.draw.camera_renderer import CameraRenderer
 from src.selection.face_selector import FaceSelector
-from src.selection.models import FaceSelectionResult, SelectionStatus
-from src.validation.face_sample_validator import FaceSampleValidator
+from src.selection.models import (
+    FaceSelectionResult,
+    SelectionStatus,
+)
 from src.utils.face_helper import crop_face
+from src.validation.face_sample_validator import FaceSampleValidator
+
 
 class CameraRuntime:
     WINDOW_NAME = "TinyFace Verify"
@@ -21,7 +24,7 @@ class CameraRuntime:
         face_detector: YuNetFaceDetector,
         session: FrameSession,
         face_selector: FaceSelector,
-        face_validator: FaceSampleValidator
+        face_validator: FaceSampleValidator,
     ) -> None:
         self.camera = camera
         self.face_detector = face_detector
@@ -32,6 +35,7 @@ class CameraRuntime:
     @staticmethod
     def get_selection_status(
         selection: FaceSelectionResult,
+        is_valid_sample: bool,
     ) -> tuple[str, tuple[int, int, int]]:
         if selection.status is SelectionStatus.NO_FACE:
             return "No face detected", (0, 0, 255)
@@ -39,8 +43,11 @@ class CameraRuntime:
         if selection.status is SelectionStatus.AMBIGUOUS:
             return "Cannot determine target face", (0, 165, 255)
 
-        return "Target face selected", (0, 255, 0)
-    
+        if not is_valid_sample:
+            return "Face selected, but sample is invalid", (0, 165, 255)
+
+        return "Target face is ready", (0, 255, 0)
+
     def should_stop(self, key: int) -> bool:
         if key in (ord("q"), 27):
             return True
@@ -58,86 +65,123 @@ class CameraRuntime:
 
         try:
             for raw_frame in self.camera.face_from_camera():
+                if raw_frame is None or raw_frame.size == 0:
+                    continue
+
                 now = time.monotonic()
 
+                # Dùng cùng một frame cho detect, crop, validate và hiển thị.
                 preview = cv2.flip(raw_frame, 1)
-                
+
                 if self.session.has_timed_out(now):
                     print("Session timeout. Resetting...")
                     self.session.reset()
-                    
+
+                # 1. Phát hiện tất cả khuôn mặt
                 detections = self.face_detector.detect(preview)
 
-
+                # 2. Chọn khuôn mặt mục tiêu
                 selection = self.face_selector.select(
-                                    detections=detections,
-                                    frame_shape=preview.shape,
-                                )
-                selected_face = (
-                                    selection.face
-                                    if selection.status is SelectionStatus.SELECTED
-                                    else None
-                                )
-                face_crop = (
-                    crop_face(preview, selected_face)
-                    if selected_face is not None
+                    detections=detections,
+                    frame_shape=preview.shape,
+                )
+
+                selected_face = None
+
+                if selection.status is SelectionStatus.SELECTED:
+                    selected_face = selection.face
+
+                # 3. Crop ảnh và chuyển landmark về tọa độ crop
+                cropped_face = None
+
+                if selected_face is not None:
+                    cropped_face = crop_face(
+                        frame=preview,
+                        face=selected_face,
+                    )
+
+                # 4. Kiểm tra chất lượng mẫu
+                is_valid_sample = False
+
+                if selected_face is not None and cropped_face is not None:
+                    is_valid_sample = self.face_validator.validate(
+                        frame=preview,
+                        face=selected_face,
+                    )
+
+                # 5. Tạo trạng thái hiển thị
+                status, status_color = self.get_selection_status(
+                    selection=selection,
+                    is_valid_sample=is_valid_sample,
+                )
+
+                # 6. Thu thập mẫu hợp lệ
+                if (
+                    is_valid_sample
+                    and cropped_face is not None
+                    and self.session.should_sample(now)
+                ):
+                    self.session.add(
+                        preview.copy(),
+                        now,
+                    )
+
+                    print(
+                        f"Collected: {self.session.collected_count}/"
+                        f"{self.session.required_frames}"
+                    )
+
+                # 7. Tách ảnh và landmark để renderer sử dụng
+                face_crop_image = (
+                    cropped_face.image
+                    if cropped_face is not None
                     else None
                 )
 
-                is_valid_sample = (
-                    selected_face is not None
-                    and self.face_validator.validate(
-                        frame=preview,
-                        face=selected_face,
-                    )
+                face_crop_landmarks = (
+                    cropped_face.landmarks
+                    if cropped_face is not None
+                    else None
                 )
-                status, status_color = self.get_selection_status(
-                    selection
-                )
-                is_valid_sample = (
-                    selected_face is not None
-                    and self.face_validator.validate(
-                        frame=preview,
-                        face=selected_face,
-                    )
-                )
-                
-                if is_valid_sample and self.session.should_sample(now):
-                    self.session.add(preview, now)
-                    
-                    # print(
-                    #     f"Collected: {self.session.collected_count}/"
-                    #     f"{self.session.required_frames}"
-                    # )
 
-                preview = CameraRenderer.render(
-                frame=preview,
-                detections=detections,
-                selected_face=selected_face,
-                face_crop=face_crop,
-                is_valid_sample=is_valid_sample,
-                collected_count=self.session.collected_count,
-                required_frames=self.session.required_frames,
-                status=status,
-                status_color=status_color,
-            )
-                cv2.imshow(self.WINDOW_NAME, preview)
+                # 8. Render camera và panel
+                rendered_frame = CameraRenderer.render(
+                    frame=preview,
+                    detections=detections,
+                    selected_face=selected_face,
+                    face_crop=face_crop_image,
+                    face_landmarks=face_crop_landmarks,
+                    is_valid_sample=is_valid_sample,
+                    collected_count=self.session.collected_count,
+                    required_frames=self.session.required_frames,
+                    status=status,
+                    status_color=status_color,
+                )
 
+                cv2.imshow(
+                    self.WINDOW_NAME,
+                    rendered_frame,
+                )
+
+                # 9. Xử lý session hoàn tất
                 if self.session.is_complete:
-                    # print("Session completed")
+                    print("Session completed")
 
                     frames = self.session.get_frames()
-                    
+
+                    # Sau này gọi:
                     # result = self.verification_service.verify(frames)
 
                     self.session.reset()
 
+                # 10. Xử lý bàn phím
                 key = cv2.waitKey(1) & 0xFF
 
                 if self.should_stop(key):
                     break
 
                 if key == ord("r"):
+                    print("Session manually reset")
                     self.session.reset()
 
         finally:
