@@ -13,7 +13,7 @@ from src.selection.models import (
 )
 from src.utils.face_helper import crop_face
 from src.validation.face_sample_validator import FaceSampleValidator
-
+from src.draw.models import CameraRenderState
 
 class CameraRuntime:
     WINDOW_NAME = "TinyFace Verify"
@@ -144,18 +144,22 @@ class CameraRuntime:
                     else None
                 )
 
-                # 8. Render camera và panel
-                rendered_frame = CameraRenderer.render(
-                    frame=preview,
+                
+                render_state = CameraRenderState(
                     detections=detections,
                     selected_face=selected_face,
                     face_crop=face_crop_image,
-                    face_landmarks=face_crop_landmarks,
+                    crop_landmarks=face_crop_landmarks,
                     is_valid_sample=is_valid_sample,
                     collected_count=self.session.collected_count,
                     required_frames=self.session.required_frames,
                     status=status,
-                    status_color=status_color,
+                    status_color=status_color
+                )
+                # 8. Render camera và panel
+                rendered_frame = CameraRenderer.render(
+                    frame=preview,
+                    state = render_state
                 )
 
                 cv2.imshow(
