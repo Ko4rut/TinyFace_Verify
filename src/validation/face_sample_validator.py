@@ -44,7 +44,7 @@ class FaceSampleValidator:
         frame: np.ndarray,
         face: FaceDetection,
     ) -> bool:
-        face_crop = crop_face(frame, face)
+        face_crop = crop_face(frame, face).image
 
         if face_crop is None:
             return False
