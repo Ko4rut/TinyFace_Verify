@@ -14,6 +14,7 @@ from src.selection.models import (
 from src.utils.face_helper import crop_face
 from src.validation.face_sample_validator import FaceSampleValidator
 from src.draw.models import CameraRenderState
+from src.alignment.face_aligner import FaceAligner
 
 class CameraRuntime:
     WINDOW_NAME = "TinyFace Verify"
@@ -25,13 +26,14 @@ class CameraRuntime:
         session: FrameSession,
         face_selector: FaceSelector,
         face_validator: FaceSampleValidator,
+        face_aligner: FaceAligner,
     ) -> None:
         self.camera = camera
         self.face_detector = face_detector
         self.session = session
         self.face_selector = face_selector
         self.face_validator = face_validator
-
+        self.face_aligner = face_aligner
     @staticmethod
     def get_selection_status(
         selection: FaceSelectionResult,
@@ -93,6 +95,7 @@ class CameraRuntime:
 
                 # 3. Crop ảnh và chuyển landmark về tọa độ crop
                 cropped_face = None
+                alignment_result = None
                 
                 if selected_face is not None:
                     cropped_face = crop_face(
@@ -144,7 +147,13 @@ class CameraRuntime:
                     else None
                 )
 
-                
+                if cropped_face is not None:
+                    alignment_result = self.face_aligner.align(
+                        image=cropped_face.image,
+                        landmarks=cropped_face.landmarks,
+                    )
+                    
+               
                 render_state = CameraRenderState(
                     detections=detections,
                     selected_face=selected_face,
