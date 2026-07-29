@@ -95,6 +95,7 @@ class CameraRuntime:
 
                 # 3. Crop ảnh và chuyển landmark về tọa độ crop
                 cropped_face = None
+                alignment_result = None
                 
                 if selected_face is not None:
                     cropped_face = crop_face(
@@ -146,7 +147,13 @@ class CameraRuntime:
                     else None
                 )
 
-                
+                if cropped_face is not None:
+                    alignment_result = self.face_aligner.align(
+                        image=cropped_face.image,
+                        landmarks=cropped_face.landmarks,
+                    )
+                    
+               
                 render_state = CameraRenderState(
                     detections=detections,
                     selected_face=selected_face,

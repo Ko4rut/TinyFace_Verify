@@ -6,7 +6,7 @@ from src.detection.yunet_detector import (
 from src.capture.frame_session import FrameSession
 from src.selection.rule_based_face_selector import RuleBasedFaceSelector
 from src.validation.face_sample_validator import FaceSampleValidator
-
+from src.alignment.face_aligner import FaceAligner
 camera = CameraInput(camera_index=0)
 
 # adding detector
@@ -32,13 +32,15 @@ face_validator = FaceSampleValidator(
     min_edge_margin_ratio=0.05,
     min_blur_score=80.0,
 )
+face_aligner = FaceAligner(output_size=(112, 112))
 
 runtime = CameraRuntime(
     camera=camera,
     face_detector=face_detector,
     session=frames,
     face_selector = selector,
-    face_validator=face_validator
+    face_validator=face_validator,
+    face_aligner=face_aligner
 )
 
 runtime.run()
