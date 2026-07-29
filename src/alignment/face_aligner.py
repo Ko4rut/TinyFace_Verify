@@ -1,17 +1,7 @@
-from dataclasses import dataclass
+from src.alignment.models import FaceAlignmentResult
 
 import cv2
 import numpy as np
-
-
-@dataclass(frozen=True)
-class FaceAlignmentResult:
-    """Result of aligning one cropped face to the reference template."""
-
-    image: np.ndarray
-    landmarks: np.ndarray
-    transform_matrix: np.ndarray
-
 
 class FaceAligner:
     """
