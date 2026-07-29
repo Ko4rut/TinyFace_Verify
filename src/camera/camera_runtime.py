@@ -5,7 +5,7 @@ import cv2
 from src.camera.camera_input import CameraInput
 from src.capture.frame_session import FrameSession
 from src.detection.yunet_detector import YuNetFaceDetector
-from src.draw.camera_renderer import CameraRenderer
+from src.draw.camera_renderer_services import CameraRenderer
 from src.selection.face_selector import FaceSelector
 from src.selection.models import (
     FaceSelectionResult,
@@ -93,7 +93,7 @@ class CameraRuntime:
 
                 # 3. Crop ảnh và chuyển landmark về tọa độ crop
                 cropped_face = None
-
+                
                 if selected_face is not None:
                     cropped_face = crop_face(
                         frame=preview,
