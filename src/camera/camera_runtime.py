@@ -177,12 +177,23 @@ class CameraRuntime:
             if cropped_face is not None
             else None
         )
+        
+        # 10. Chuẩn bị dữ liệu cho renderer
+        if alignment_result is not None:
+            display_face_image = alignment_result.image
+            display_face_landmarks = alignment_result.landmarks
+        elif cropped_face is not None:
+            display_face_image = cropped_face.image
+            display_face_landmarks = cropped_face.landmarks
+        else:
+            display_face_image = None
+            display_face_landmarks = None
 
         render_state = CameraRenderState(
             detections=detections,
             selected_face=selected_face,
-            face_crop=face_crop_image,
-            crop_landmarks=face_crop_landmarks,
+            face_crop=display_face_image,
+            crop_landmarks=display_face_landmarks,
             is_valid_sample=is_sample_ready,
             collected_count=self.session.collected_count,
             required_frames=self.session.required_frames,
