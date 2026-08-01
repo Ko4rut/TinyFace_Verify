@@ -20,6 +20,7 @@ class FacePanelRenderer:
         face_crop: np.ndarray | None,
         is_valid_sample: bool,
         face_landmarks: np.ndarray | None,
+        original_landmarks: np.ndarray | None,
         status: str,
     ) -> np.ndarray:
         panel = np.full(
@@ -36,6 +37,7 @@ class FacePanelRenderer:
             panel=panel,
             face_crop=face_crop,
             face_landmarks=face_landmarks,
+            original_landmarks=original_landmarks,
             is_valid_sample=is_valid_sample,
         )
 
@@ -54,6 +56,7 @@ class FacePanelRenderer:
         panel: np.ndarray,
         face_crop: np.ndarray | None,
         face_landmarks: np.ndarray | None,
+        original_landmarks: np.ndarray | None,
         is_valid_sample: bool,
     ) -> None:
         x1 = cls.PADDING
@@ -89,9 +92,10 @@ class FacePanelRenderer:
         )
 
         if face_landmarks is not None:
-            cls._draw_landmarks(
+            cls._draw_eye_comparison(
                 image=crop_preview,
-                landmarks=face_landmarks,
+                aligned_landmarks=face_landmarks,
+                original_landmarks=original_landmarks,
                 scale=scale,
                 x_offset=x_offset,
                 y_offset=y_offset,
@@ -113,6 +117,110 @@ class FacePanelRenderer:
             3,
         )
 
+    @staticmethod
+    def _draw_eye_alignment(
+        image: np.ndarray,
+        landmarks: np.ndarray,
+        scale: float,
+        x_offset: int,
+        y_offset: int,
+    ) -> None:
+        points = np.asarray(
+            landmarks,
+            dtype=np.float32,
+        ).reshape(-1, 2)
+
+        if len(points) < 2:
+            return
+
+        left_eye = points[0]
+        right_eye = points[1]
+
+        left_eye_draw = (
+            int(left_eye[0] * scale + x_offset),
+            int(left_eye[1] * scale + y_offset),
+        )
+
+        right_eye_draw = (
+            int(right_eye[0] * scale + x_offset),
+            int(right_eye[1] * scale + y_offset),
+        )
+
+        # Vẽ hai mắt
+        cv2.circle(
+            image,
+            left_eye_draw,
+            4,
+            (255, 0, 0),
+            -1,
+            cv2.LINE_AA,
+        )
+
+        cv2.circle(
+            image,
+            right_eye_draw,
+            4,
+            (0, 255, 255),
+            -1,
+            cv2.LINE_AA,
+        )
+
+        # Đường nối hai mắt
+        cv2.line(
+            image,
+            left_eye_draw,
+            right_eye_draw,
+            (0, 0, 255),
+            2,
+            cv2.LINE_AA,
+        )
+
+        dx = right_eye_draw[0] - left_eye_draw[0]
+        dy = right_eye_draw[1] - left_eye_draw[1]
+
+        if np.hypot(dx, dy) <= 1e-6:
+            return
+
+        angle = float(
+            np.degrees(
+                np.arctan2(dy, dx)
+            )
+        )
+
+        center_x = (
+            left_eye_draw[0] + right_eye_draw[0]
+        ) // 2
+
+        center_y = (
+            left_eye_draw[1] + right_eye_draw[1]
+        ) // 2
+
+        eye_distance = int(np.hypot(dx, dy))
+
+        # Đường ngang tham chiếu
+        cv2.line(
+            image,
+            (center_x - eye_distance // 2, center_y),
+            (center_x + eye_distance // 2, center_y),
+            (0, 255, 0),
+            1,
+            cv2.LINE_AA,
+        )
+
+        cv2.putText(
+            image,
+            f"{angle:.1f} deg",
+            (
+                max(2, center_x - 30),
+                max(12, center_y - 10),
+            ),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.35,
+            (0, 0, 255),
+            1,
+            cv2.LINE_AA,
+        )
+    
     @staticmethod
     def _draw_landmarks(
         image: np.ndarray,
@@ -159,7 +267,170 @@ class FacePanelRenderer:
                 1,
                 cv2.LINE_AA,
             )
+            
+    @staticmethod
+    def _draw_eye_comparison(
+        image: np.ndarray,
+        aligned_landmarks: np.ndarray,
+        original_landmarks: np.ndarray | None,
+        scale: float,
+        x_offset: int,
+        y_offset: int,
+    ) -> None:
+        aligned_points = np.asarray(
+            aligned_landmarks,
+            dtype=np.float32,
+        ).reshape(-1, 2)
 
+        if len(aligned_points) < 2:
+            return
+
+        aligned_left_eye = aligned_points[0]
+        aligned_right_eye = aligned_points[1]
+
+        aligned_left_draw = (
+            int(aligned_left_eye[0] * scale + x_offset),
+            int(aligned_left_eye[1] * scale + y_offset),
+        )
+
+        aligned_right_draw = (
+            int(aligned_right_eye[0] * scale + x_offset),
+            int(aligned_right_eye[1] * scale + y_offset),
+        )
+
+        # Hai điểm mắt sau align
+        cv2.circle(
+            image,
+            aligned_left_draw,
+            3,
+            (255, 0, 0),
+            -1,
+            cv2.LINE_AA,
+        )
+
+        cv2.circle(
+            image,
+            aligned_right_draw,
+            3,
+            (0, 255, 255),
+            -1,
+            cv2.LINE_AA,
+        )
+
+        # Đường mắt sau align — màu xanh lá
+        cv2.line(
+            image,
+            aligned_left_draw,
+            aligned_right_draw,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+        aligned_dx = (
+            aligned_right_draw[0] - aligned_left_draw[0]
+        )
+        aligned_dy = (
+            aligned_right_draw[1] - aligned_left_draw[1]
+        )
+
+        aligned_angle = float(
+            np.degrees(
+                np.arctan2(aligned_dy, aligned_dx)
+            )
+        )
+
+        center_x = (
+            aligned_left_draw[0] + aligned_right_draw[0]
+        ) // 2
+
+        center_y = (
+            aligned_left_draw[1] + aligned_right_draw[1]
+        ) // 2
+
+        aligned_distance = float(
+            np.hypot(aligned_dx, aligned_dy)
+        )
+
+        # Vẽ góc trước align để so sánh
+        if original_landmarks is not None:
+            original_points = np.asarray(
+                original_landmarks,
+                dtype=np.float32,
+            ).reshape(-1, 2)
+
+            if len(original_points) >= 2:
+                original_vector = (
+                    original_points[1] - original_points[0]
+                )
+
+                original_distance = float(
+                    np.linalg.norm(original_vector)
+                )
+
+                if original_distance > 1e-6:
+                    original_unit_vector = (
+                        original_vector / original_distance
+                    )
+
+                    # Dùng cùng độ dài với đường aligned để dễ so sánh
+                    half_vector = (
+                        original_unit_vector
+                        * aligned_distance
+                        / 2.0
+                    )
+
+                    original_start = (
+                        int(center_x - half_vector[0]),
+                        int(center_y - half_vector[1]),
+                    )
+
+                    original_end = (
+                        int(center_x + half_vector[0]),
+                        int(center_y + half_vector[1]),
+                    )
+
+                    # Đường mắt trước align — màu đỏ
+                    cv2.line(
+                        image,
+                        original_start,
+                        original_end,
+                        (0, 0, 255),
+                        1,
+                        cv2.LINE_AA,
+                    )
+
+                    original_angle = float(
+                        np.degrees(
+                            np.arctan2(
+                                original_vector[1],
+                                original_vector[0],
+                            )
+                        )
+                    )
+
+                    cv2.putText(
+                        image,
+                        f"Before: {original_angle:.1f}",
+                        (3, 13),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.3,
+                        (0, 0, 255),
+                        1,
+                        cv2.LINE_AA,
+                    )
+
+        cv2.putText(
+            image,
+            f"After: {aligned_angle:.1f}",
+            (3, 26),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.3,
+            (0, 255, 0),
+            1,
+            cv2.LINE_AA,
+        )
+        
     @classmethod
     def _resize_with_padding(
         cls,

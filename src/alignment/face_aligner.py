@@ -1,29 +1,28 @@
-from src.alignment.models import FaceAlignmentResult
-
 import cv2
 import numpy as np
 
+from src.alignment.models import FaceAlignmentResult
+
+
 class FaceAligner:
     """
-    Align a cropped face using a 2D similarity transformation.
+    Căn chỉnh khuôn mặt dựa trên hai landmark mắt.
 
-    Landmark order must follow image coordinates from left to right:
-        image-left eye, image-right eye, nose,
-        image-left mouth corner, image-right mouth corner.
-
-    The input landmarks must use the coordinate system of the input image.
+    Thứ tự landmark:
+        0: mắt trái ảnh
+        1: mắt phải ảnh
+        2: mũi
+        3: khóe miệng trái ảnh
+        4: khóe miệng phải ảnh
     """
 
     OUTPUT_SIZE = (112, 112)
 
-    # ArcFace five-point template for a 112 x 112 output image.
-    REFERENCE_LANDMARKS = np.array(
+    # Hai mắt đích nằm ngang tuyệt đối.
+    REFERENCE_EYES = np.array(
         [
-            [38.2946, 51.6963],
-            [73.5318, 51.5014],
-            [56.0252, 71.7366],
-            [41.5493, 92.3655],
-            [70.7299, 92.2041],
+            [38.2946, 51.6],
+            [73.5318, 51.6],
         ],
         dtype=np.float32,
     )
@@ -31,24 +30,19 @@ class FaceAligner:
     def __init__(
         self,
         output_size: tuple[int, int] = OUTPUT_SIZE,
-        reference_landmarks: np.ndarray | None = None,
     ) -> None:
         output_width, output_height = output_size
 
         if output_width <= 0 or output_height <= 0:
-            raise ValueError("output_size values must be greater than zero")
-
-        self.output_size = (output_width, output_height)
-
-        if reference_landmarks is None:
-            self.reference_landmarks = self._scaled_reference_landmarks(
-                output_size=self.output_size,
+            raise ValueError(
+                "output_size values must be greater than zero"
             )
-        else:
-            self.reference_landmarks = self._normalize_landmarks(
-                reference_landmarks,
-                name="reference_landmarks",
-            )
+
+        self.output_size = output_size
+
+        self.reference_eyes = self._scale_reference_eyes(
+            output_size=output_size,
+        )
 
     def align(
         self,
@@ -56,46 +50,36 @@ class FaceAligner:
         landmarks: np.ndarray,
     ) -> FaceAlignmentResult | None:
         """
-        Align an image from its five source landmarks.
+        Căn chỉnh ảnh sao cho:
 
-        Returns None when the image or landmarks cannot produce a valid
-        similarity transformation.
+        - Hai mắt nằm ngang.
+        - Khoảng cách hai mắt được chuẩn hóa.
+        - Tâm hai mắt được đưa về vị trí chuẩn.
         """
         if image is None or image.size == 0:
             return None
 
         try:
             source_landmarks = self._normalize_landmarks(
-                landmarks,
-                name="landmarks",
+                landmarks=landmarks,
             )
         except (TypeError, ValueError):
             return None
 
+        source_eyes = source_landmarks[:2]
+
+        # Alignment chỉ dùng hai mắt nên chỉ cần kiểm tra hai mắt.
         if not self._landmarks_are_inside_image(
-            landmarks=source_landmarks,
+            landmarks=source_eyes,
             image_shape=image.shape,
         ):
             return None
 
-        transform_matrix, _ = cv2.estimateAffinePartial2D(
-            source_landmarks,
-            self.reference_landmarks,
-            method=cv2.LMEDS,
+        transform_matrix = self._create_transform_matrix(
+            source_eyes=source_eyes,
         )
 
         if transform_matrix is None:
-            return None
-
-        transform_matrix = np.asarray(
-            transform_matrix,
-            dtype=np.float32,
-        )
-
-        if (
-            transform_matrix.shape != (2, 3)
-            or not np.isfinite(transform_matrix).all()
-        ):
             return None
 
         aligned_image = cv2.warpAffine(
@@ -107,6 +91,7 @@ class FaceAligner:
             borderValue=(0, 0, 0),
         )
 
+        # Dùng cùng ma trận để chuyển toàn bộ 5 landmark.
         aligned_landmarks = cv2.transform(
             source_landmarks.reshape(1, 5, 2),
             transform_matrix,
@@ -118,25 +103,165 @@ class FaceAligner:
             transform_matrix=transform_matrix,
         )
 
+    @staticmethod
+    def calculate_eye_angle(
+        left_eye: np.ndarray,
+        right_eye: np.ndarray,
+    ) -> float:
+        """
+        Tính góc của đường nối hai mắt so với phương ngang.
+
+        Góc dương:
+            mắt phải ảnh thấp hơn mắt trái ảnh.
+
+        Góc âm:
+            mắt phải ảnh cao hơn mắt trái ảnh.
+        """
+        left_eye = np.asarray(
+            left_eye,
+            dtype=np.float32,
+        ).reshape(2)
+
+        right_eye = np.asarray(
+            right_eye,
+            dtype=np.float32,
+        ).reshape(2)
+
+        eye_vector = right_eye - left_eye
+
+        dx = float(eye_vector[0])
+        dy = float(eye_vector[1])
+
+        if np.hypot(dx, dy) <= 1e-6:
+            raise ValueError(
+                "The two eye landmarks must not overlap"
+            )
+
+        angle_radians = np.arctan2(dy, dx)
+
+        return float(
+            np.degrees(angle_radians)
+        )
+
+    def _create_transform_matrix(
+        self,
+        source_eyes: np.ndarray,
+    ) -> np.ndarray | None:
+        """
+        Tạo ma trận similarity transform:
+
+            M = [sR | t]
+
+        Trong đó:
+            R: phép xoay
+            s: tỉ lệ
+            t: phép tịnh tiến
+        """
+        source_left_eye = source_eyes[0]
+        source_right_eye = source_eyes[1]
+
+        target_left_eye = self.reference_eyes[0]
+        target_right_eye = self.reference_eyes[1]
+
+        source_vector = (
+            source_right_eye - source_left_eye
+        )
+
+        target_vector = (
+            target_right_eye - target_left_eye
+        )
+
+        source_distance = float(
+            np.linalg.norm(source_vector)
+        )
+
+        target_distance = float(
+            np.linalg.norm(target_vector)
+        )
+
+        if source_distance <= 1e-6:
+            return None
+
+        # Góc nghiêng hiện tại của hai mắt.
+        source_angle_degrees = self.calculate_eye_angle(
+            left_eye=source_left_eye,
+            right_eye=source_right_eye,
+        )
+
+        # REFERENCE_EYES đang nằm ngang nên target_angle = 0°.
+        # Ảnh nghiêng +10° thì cần xoay lại -10°.
+        rotation_angle_degrees = -source_angle_degrees
+
+        scale = target_distance / source_distance
+
+        rotation_angle_radians = np.radians(
+            rotation_angle_degrees
+        )
+
+        cos_value = (
+            np.cos(rotation_angle_radians) * scale
+        )
+
+        sin_value = (
+            np.sin(rotation_angle_radians) * scale
+        )
+
+        linear_transform = np.array(
+            [
+                [cos_value, -sin_value],
+                [sin_value, cos_value],
+            ],
+            dtype=np.float32,
+        )
+
+        source_center = (
+            source_left_eye + source_right_eye
+        ) / 2.0
+
+        target_center = (
+            target_left_eye + target_right_eye
+        ) / 2.0
+
+        translation = (
+            target_center
+            - linear_transform @ source_center
+        )
+
+        transform_matrix = np.column_stack(
+            [
+                linear_transform,
+                translation,
+            ]
+        ).astype(np.float32)
+
+        if not np.isfinite(transform_matrix).all():
+            return None
+
+        return transform_matrix
+
     @classmethod
-    def _scaled_reference_landmarks(
+    def _scale_reference_eyes(
         cls,
         output_size: tuple[int, int],
     ) -> np.ndarray:
         output_width, output_height = output_size
-        scale = np.array(
+
+        coordinate_scale = np.array(
             [
                 output_width / cls.OUTPUT_SIZE[0],
                 output_height / cls.OUTPUT_SIZE[1],
             ],
             dtype=np.float32,
         )
-        return cls.REFERENCE_LANDMARKS.copy() * scale
+
+        return (
+            cls.REFERENCE_EYES.copy()
+            * coordinate_scale
+        )
 
     @staticmethod
     def _normalize_landmarks(
         landmarks: np.ndarray,
-        name: str,
     ) -> np.ndarray:
         points = np.asarray(
             landmarks,
@@ -144,12 +269,16 @@ class FaceAligner:
         )
 
         if points.size != 10:
-            raise ValueError(f"{name} must contain exactly five (x, y) points")
+            raise ValueError(
+                "landmarks must contain exactly five points"
+            )
 
         points = points.reshape(5, 2).copy()
 
         if not np.isfinite(points).all():
-            raise ValueError(f"{name} must contain only finite values")
+            raise ValueError(
+                "landmarks must contain finite values"
+            )
 
         return points
 
@@ -164,6 +293,12 @@ class FaceAligner:
         y_coordinates = landmarks[:, 1]
 
         return bool(
-            np.all((0 <= x_coordinates) & (x_coordinates < image_width))
-            and np.all((0 <= y_coordinates) & (y_coordinates < image_height))
+            np.all(
+                (x_coordinates >= 0)
+                & (x_coordinates < image_width)
+            )
+            and np.all(
+                (y_coordinates >= 0)
+                & (y_coordinates < image_height)
+            )
         )

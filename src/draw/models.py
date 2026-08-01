@@ -11,10 +11,11 @@ class CameraRenderState:
     selected_face: FaceDetection | None
     face_crop: np.ndarray | None
     crop_landmarks: np.ndarray | None
-    is_valid_sample: bool
 
-    collected_count: int
-    required_frames: int
+    original_landmarks: np.ndarray | None = None
 
-    status: str
-    status_color: tuple[int, int, int]
+    is_valid_sample: bool = False
+    collected_count: int = 0
+    required_frames: int = 0
+    status: str = ""
+    status_color: tuple[int, int, int] = (255, 255, 255)
