@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 from src.detection.models import FaceDetection
-
+from src.alignment.face_aligner import FaceAligner
 
 class FaceRenderer:
     SELECTED_COLOR  = (0, 255, 0)
@@ -31,7 +31,7 @@ class FaceRenderer:
                 is_selected=is_selected,
             )
 
-            cls._draw_landmarks(
+            cls._draw_eye_landmarks(
                 frame=annotated_frame,
                 detection=detection,
             )
@@ -82,19 +82,86 @@ class FaceRenderer:
         )
     
     @classmethod
-    def _draw_landmarks(
+    def _draw_eye_landmarks(
         cls,
         frame: np.ndarray,
         detection: FaceDetection,
     ) -> None:
-        for landmark_x, landmark_y in detection.landmarks:
+        landmarks = np.asarray(
+            detection.landmarks,
+            dtype=np.float32,
+        ).reshape(-1, 2)
+
+        if len(landmarks) < 2:
+            return
+
+        left_eye = landmarks[0]
+        right_eye = landmarks[1]
+
+        left_eye_point = (
+            int(left_eye[0]),
+            int(left_eye[1]),
+        )
+
+        right_eye_point = (
+            int(right_eye[0]),
+            int(right_eye[1]),
+        )
+
+        # Vẽ hai landmark mắt
+        for eye_point in (left_eye_point, right_eye_point):
             cv2.circle(
                 frame,
-                (int(landmark_x), int(landmark_y)),
+                eye_point,
                 3,
-                cls.LANDMARK_COLOR,
+                (233, 196, 106),
                 -1,
+                cv2.LINE_AA,
             )
+
+        # 1. Đường nối hai mắt thực tế
+        cv2.line(
+            frame,
+            left_eye_point,
+            right_eye_point,
+            cls.LANDMARK_COLOR,
+            2,
+            cv2.LINE_AA,
+        )
+
+        # Tọa độ ngang đi qua tâm hai mắt
+        eye_center_y = int(
+            (left_eye[1] + right_eye[1]) / 2
+        )
+
+        x1, _, x2, _ = detection.bbox
+
+        # 2. Đường ngang tham chiếu, chạy từ cạnh trái
+        # đến cạnh phải của rectangle
+        cv2.line(
+            frame,
+            (x1, eye_center_y),
+            (x2, eye_center_y),
+            cls.SELECTED_COLOR,
+            1,
+            cv2.LINE_AA,
+        )
+
+        angle = FaceAligner.calculate_eye_angle(
+            left_eye=left_eye,
+            right_eye=right_eye,
+        )
+
+        cv2.putText(
+            frame,
+            f"Angle: {angle:.1f} deg",
+            (x1, max(20, eye_center_y - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            cls.TEXT_COLOR,
+            1,
+            cv2.LINE_AA,
+        )
             
     @staticmethod
     def _draw_info(

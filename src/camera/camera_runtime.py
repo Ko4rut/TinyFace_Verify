@@ -87,16 +87,14 @@ class CameraRuntime:
             False: tiếp tục đọc frame tiếp theo.
         """
         now = time.monotonic()
-
-        # Dùng cùng một frame cho detect, validate, crop và hiển thị.
         preview = cv2.flip(raw_frame, 1)
 
-        # 1. Kiểm tra timeout của phiên thu mẫu
+        # 1. Kiểm tra timeout
         if self.session.has_timed_out(now):
             print("Session timeout. Resetting...")
             self.session.reset()
 
-        # 2. Phát hiện tất cả khuôn mặt
+        # 2. Detect khuôn mặt
         detections = self.face_detector.detect(preview)
 
         # 3. Chọn khuôn mặt mục tiêu
@@ -105,50 +103,38 @@ class CameraRuntime:
             frame_shape=preview.shape,
         )
 
-        selected_face = None
+        selected_face = (
+            selection.face
+            if selection.status is SelectionStatus.SELECTED
+            else None
+        )
 
-        if selection.status is SelectionStatus.SELECTED:
-            selected_face = selection.face
-
-        # 4. Khởi tạo kết quả xử lý khuôn mặt
-        cropped_face = None
-        alignment_result = None
+        # 4. Validate
         is_valid_sample = False
 
-        # 5. Validate khuôn mặt được chọn
         if selected_face is not None:
             is_valid_sample = self.face_validator.validate(
                 frame=preview,
                 face=selected_face,
             )
 
-        # 6. Crop để hiển thị và chuyển landmark sang tọa độ crop
-        if selected_face is not None:
-            cropped_face = crop_face(
-                frame=preview,
-                face=selected_face,
-            )
+        # 5. Align trực tiếp từ frame
+        alignment_result = None
 
-        # 7. Chỉ alignment nếu mẫu đã qua validation
-        if is_valid_sample and cropped_face is not None:
+        if is_valid_sample and selected_face is not None:
             alignment_result = self.face_aligner.align(
-                image=cropped_face.image,
-                landmarks=cropped_face.landmarks,
+                image=preview,
+                landmarks=selected_face.landmarks,
             )
 
-        # Mẫu chỉ thực sự sẵn sàng khi đã:
-        # selected → validated → cropped → aligned
+        # 6. Kiểm tra mẫu đã sẵn sàng
         is_sample_ready = (
             is_valid_sample
-            and cropped_face is not None
             and alignment_result is not None
         )
 
-        # 8. Thu ảnh mặt đã alignment
-        if (
-            is_sample_ready
-            and self.session.should_sample(now)
-        ):
+        # 7. Thu ảnh aligned
+        if is_sample_ready and self.session.should_sample(now):
             self.session.add(
                 alignment_result.image.copy(),
                 now,
@@ -159,41 +145,36 @@ class CameraRuntime:
                 f"{self.session.required_frames}"
             )
 
-        # 9. Tạo trạng thái thông báo
+        # 8. Tạo status
         status, status_color = self.get_selection_status(
             selection=selection,
             is_valid_sample=is_sample_ready,
         )
 
-        # 10. Chuẩn bị dữ liệu cho renderer
-        face_crop_image = (
-            cropped_face.image
-            if cropped_face is not None
-            else None
-        )
-
-        face_crop_landmarks = (
-            cropped_face.landmarks
-            if cropped_face is not None
-            else None
-        )
-        
-        # 10. Chuẩn bị dữ liệu cho renderer
-        if alignment_result is not None:
-            display_face_image = alignment_result.image
-            display_face_landmarks = alignment_result.landmarks
-        elif cropped_face is not None:
-            display_face_image = cropped_face.image
-            display_face_landmarks = cropped_face.landmarks
-        else:
-            display_face_image = None
-            display_face_landmarks = None
-
         render_state = CameraRenderState(
             detections=detections,
             selected_face=selected_face,
-            face_crop=display_face_image,
-            crop_landmarks=display_face_landmarks,
+
+            face_crop=(
+                alignment_result.image
+                if alignment_result is not None
+                else None
+            ),
+
+            # Landmark sau align
+            crop_landmarks=(
+                alignment_result.landmarks
+                if alignment_result is not None
+                else None
+            ),
+
+            # Landmark trước align
+            original_landmarks=(
+                selected_face.landmarks
+                if selected_face is not None
+                else None
+            ),
+
             is_valid_sample=is_sample_ready,
             collected_count=self.session.collected_count,
             required_frames=self.session.required_frames,
@@ -201,7 +182,7 @@ class CameraRuntime:
             status_color=status_color,
         )
 
-        # 11. Render camera và panel khuôn mặt
+        # 10. Render
         rendered_frame = CameraRenderer.render(
             frame=preview,
             state=render_state,
@@ -212,11 +193,11 @@ class CameraRuntime:
             rendered_frame,
         )
 
-        # 12. Xử lý khi đã thu đủ số lượng mẫu
+        # 11. Xử lý phiên hoàn thành
         if self.session.is_complete:
             self._handle_completed_session()
 
-        # 13. Xử lý bàn phím
+        # 12. Xử lý bàn phím
         key = cv2.waitKey(1) & 0xFF
 
         if self.should_stop(key):
