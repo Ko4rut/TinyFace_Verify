@@ -33,6 +33,7 @@ class CameraRenderer:
             is_valid_sample=state.is_valid_sample,
             # collected_count=state.collected_count,
             # required_frames=state.required_frames,
+            original_landmarks=state.original_landmarks,
             status=state.status,
             # status_color=state.status_color,
         )
