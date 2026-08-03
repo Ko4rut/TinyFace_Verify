@@ -21,9 +21,9 @@ frames = FrameSession()
 
 # adding selector
 selector = RuleBasedFaceSelector(
-    area_weight=0.6,
-    center_weight=0.4,
-    ambiguity_margin=0.15,
+    area_weight=0.4,
+    center_weight=0.3,
+    ambiguity_margin=0.1,
 )
 
 # adding validator
