@@ -9,8 +9,13 @@ class RuleBasedFaceSelector:
         self,
         area_weight: float = 0.6,
         center_weight: float = 0.4,
-        ambiguity_margin: float = 0.15,
+        ambiguity_margin: float = 0.05,
     ) -> None:
+        """
+        area_weight: The ratio of the face to frame
+        center_weight: 
+        """
+        
         if area_weight < 0 or center_weight < 0:
             raise ValueError("Score weights must be non-negative")
 
