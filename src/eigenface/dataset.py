@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 class AttFaceDataset:
-    SUPPORTED_EXTENSION = {".pgm"}
+    SUPPORTED_EXTENSIONS = {".pgm"}
     
     def __init__(self, root_directory: str | Path) -> None:
         self.root_directory = Path(root_directory)
@@ -53,52 +53,52 @@ class AttFaceDataset:
 
                 yield image, label, image_path
                 
-    # def _get_person_directories(self) -> list[Path]:
-    #     directories = [
-    #         path
-    #         for path in self.root_directory.iterdir()
-    #         if path.is_dir()
-    #         and path.name.startswith("s")
-    #         and path.name[1:].isdigit()
-    #     ]
+    def _get_person_directories(self) -> list[Path]:
+        directories = [
+            path
+            for path in self.root_directory.iterdir()
+            if path.is_dir()
+            and path.name.startswith("s")
+            and path.name[1:].isdigit()
+        ]
 
-    #     return sorted(
-    #         directories,
-    #         key=lambda path: int(path.name[1:]),
-    #     )
+        return sorted(
+            directories,
+            key=lambda path: int(path.name[1:]),
+        )
 
-    # def _get_image_paths(
-    #     self,
-    #     person_directory: Path,
-    # ) -> list[Path]:
-    #     image_paths = [
-    #         path
-    #         for path in person_directory.iterdir()
-    #         if (
-    #             path.is_file()
-    #             and path.suffix.lower()
-    #             in self.SUPPORTED_EXTENSIONS
-    #         )
-    #     ]
+    def _get_image_paths(
+        self,
+        person_directory: Path,
+    ) -> list[Path]:
+        image_paths = [
+            path
+            for path in person_directory.iterdir()
+            if (
+                path.is_file()
+                and path.suffix.lower()
+                in self.SUPPORTED_EXTENSIONS
+            )
+        ]
 
-    #     return sorted(
-    #         image_paths,
-    #         key=self._image_sort_key,
-    #     )
+        return sorted(
+            image_paths,
+            key=self._image_sort_key,
+        )
 
-    # @staticmethod
-    # def _parse_label(directory_name: str) -> int:
-    #     return int(directory_name[1:])
+    @staticmethod
+    def _parse_label(directory_name: str) -> int:
+        return int(directory_name[1:])
 
-    # @staticmethod
-    # def _image_sort_key(path: Path) -> tuple[int, str]:
-    #     if path.stem.isdigit():
-    #         return int(path.stem), path.name
+    @staticmethod
+    def _image_sort_key(path: Path) -> tuple[int, str]:
+        if path.stem.isdigit():
+            return int(path.stem), path.name
 
-    #     return 0, path.name
+        return 0, path.name
 
-    # def __len__(self) -> int:
-    #     return sum(
-    #         1
-    #         for _ in self.iter_samples()
-    #     )
+    def __len__(self) -> int:
+        return sum(
+            1
+            for _ in self.iter_samples()
+        )
