@@ -27,15 +27,9 @@ class AttFaceDataset:
     ) -> Iterator[tuple[np.ndarray, int, Path]]:
         """
         Yields:
-            image:
-                Ảnh raw đọc từ dataset.
-
-            label:
-                ID danh tính lấy từ tên thư mục.
-                Ví dụ s1 -> 1.
-
-            image_path:
-                Đường dẫn ảnh, phục vụ debug hoặc lưu processed.
+            image:Image read from dataset.
+            label: ID from dir.
+            image_path: path.
         """
         for person_directory in self._get_person_directories():
             label = self._parse_label(person_directory.name)
@@ -102,3 +96,4 @@ class AttFaceDataset:
             1
             for _ in self.iter_samples()
         )
+        
