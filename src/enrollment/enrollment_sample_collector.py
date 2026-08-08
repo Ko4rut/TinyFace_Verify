@@ -40,7 +40,7 @@ class EnrollmentSampleCollector:
         self.samples.append(aligned_face.copy())
         self.last_sampled_at = sampled_at
 
-        return True
+        return True 
 
     @property
     def is_complete(self) -> bool:
