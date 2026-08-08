@@ -15,6 +15,9 @@ from src.utils.face_helper import crop_face
 from src.validation.face_sample_validator import FaceSampleValidator
 from src.draw.models import CameraRenderState
 from src.alignment.face_aligner import FaceAligner
+from src.enrollment.enrollment_sample_collector import (
+    EnrollmentSampleCollector,
+)
 
 class CameraRuntime:
     WINDOW_NAME = "TinyFace Verify"
@@ -27,6 +30,7 @@ class CameraRuntime:
         face_selector: FaceSelector,
         face_validator: FaceSampleValidator,
         face_aligner: FaceAligner,
+        enrollment_collector: EnrollmentSampleCollector = None,
     ) -> None:
         self.camera = camera
         self.face_detector = face_detector
@@ -34,6 +38,8 @@ class CameraRuntime:
         self.face_selector = face_selector
         self.face_validator = face_validator
         self.face_aligner = face_aligner
+        self.enrollment_collector = enrollment_collector
+        
     @staticmethod
     def get_selection_status(
         selection: FaceSelectionResult,
@@ -64,7 +70,10 @@ class CameraRuntime:
 
     def run(self) -> None:
         self.session.reset()
-
+        if self.is_enrollment_mode:
+            self.enrollment_collector.reset()
+        else:
+            self.session.reset()
         try:
             for raw_frame in self.camera.face_from_camera():
                 if raw_frame is None or raw_frame.size == 0:
@@ -134,16 +143,33 @@ class CameraRuntime:
         )
 
         # 7. Thu ảnh aligned
-        if is_sample_ready and self.session.should_sample(now):
-            self.session.add(
-                alignment_result.image.copy(),
-                now,
-            )
+        if is_sample_ready:
+            aligned_face = alignment_result.image
 
-            print(
-                f"Collected: {self.session.collected_count}/"
-                f"{self.session.required_frames}"
-            )
+            if self.is_enrollment_mode:
+                was_added = self.enrollment_collector.try_add(
+                    aligned_face=aligned_face,
+                    sampled_at=now,
+                )
+
+                if was_added:
+                    print(
+                        f"Enrollment collected: "
+                        f"{len(self.enrollment_collector.samples)}/"
+                        f"{self.enrollment_collector.required_samples}"
+                    )
+
+            elif self.session.should_sample(now):
+                self.session.add(
+                    aligned_face.copy(),
+                    now,
+                )
+                
+                print(
+                    f"Verification collected: "
+                    f"{self.session.collected_count}/"
+                    f"{self.session.required_frames}"
+                )
 
         # 8. Tạo status
         status, status_color = self.get_selection_status(
@@ -193,9 +219,14 @@ class CameraRuntime:
             rendered_frame,
         )
 
-        # 11. Xử lý phiên hoàn thành
-        if self.session.is_complete:
-            self._handle_completed_session()
+        # 11. Handle completed collection
+        if self.is_enrollment_mode:
+            if self.enrollment_collector.is_complete:
+                self._handle_completed_enrollment()
+                return True
+        elif self.session.is_complete:
+            self._handle_completed_verification()
+            return True
 
         # 12. Xử lý bàn phím
         key = cv2.waitKey(1) & 0xFF
@@ -209,13 +240,27 @@ class CameraRuntime:
 
         return False
 
-    def _handle_completed_session(self) -> None:
-        print("Session completed")
+    def _handle_completed_enrollment(self) -> None:
+        print("Enrollment completed")
+
+        aligned_faces = self.enrollment_collector.samples
+        
+        self.verification_service.enroll(
+            aligned_faces=aligned_faces,
+        )
+
+
+    def _handle_completed_verification(self) -> None:
+        print("Verification samples collected")
 
         aligned_faces = self.session.get_frames()
 
         # Sau này:
-        # result = self.verification_service.verify(aligned_faces)
+        # result = self.verification_service.verify(
+        #     aligned_faces=aligned_faces,
+        # )
         # print(result)
-
-        self.session.reset()
+    
+    @property
+    def is_enrollment_mode(self) -> bool:
+        return self.enrollment_collector is not None

@@ -7,6 +7,8 @@ from src.capture.frame_session import FrameSession
 from src.selection.rule_based_face_selector import RuleBasedFaceSelector
 from src.validation.face_sample_validator import FaceSampleValidator
 from src.alignment.face_aligner import FaceAligner
+from src.enrollment.enrollment_sample_collector import EnrollmentSampleCollector
+
 camera = CameraInput(camera_index=0)
 
 # adding detector
@@ -34,13 +36,17 @@ face_validator = FaceSampleValidator(
 )
 face_aligner = FaceAligner(output_size=(112, 112))
 
+enrollment_collector = EnrollmentSampleCollector(20,0.3)
+
+
 runtime = CameraRuntime(
     camera=camera,
     face_detector=face_detector,
     session=frames,
     face_selector = selector,
     face_validator=face_validator,
-    face_aligner=face_aligner
+    face_aligner=face_aligner,
+    enrollment_collector=enrollment_collector
 )
 
 runtime.run()
