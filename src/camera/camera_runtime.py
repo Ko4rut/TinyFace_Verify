@@ -143,16 +143,33 @@ class CameraRuntime:
         )
 
         # 7. Thu ảnh aligned
-        if is_sample_ready and self.session.should_sample(now):
-            self.session.add(
-                alignment_result.image.copy(),
-                now,
-            )
+        if is_sample_ready:
+            aligned_face = alignment_result.image
 
-            print(
-                f"Collected: {self.session.collected_count}/"
-                f"{self.session.required_frames}"
-            )
+            if self.is_enrollment_mode:
+                was_added = self.enrollment_collector.try_add(
+                    aligned_face=aligned_face,
+                    sampled_at=now,
+                )
+
+                if was_added:
+                    print(
+                        f"Enrollment collected: "
+                        f"{len(self.enrollment_collector.samples)}/"
+                        f"{self.enrollment_collector.required_samples}"
+                    )
+
+            elif self.session.should_sample(now):
+                self.session.add(
+                    aligned_face.copy(),
+                    now,
+                )
+                
+                print(
+                    f"Verification collected: "
+                    f"{self.session.collected_count}/"
+                    f"{self.session.required_frames}"
+                )
 
         # 8. Tạo status
         status, status_color = self.get_selection_status(
