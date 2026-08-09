@@ -25,6 +25,7 @@ preprocessor = FacePreprocessor()
 face_verify_service = FaceVerificationService(
     preprocessor=preprocessor,
     template_path=(
+        "src/"
         "models/"
         "templates/"
         "owner_template.pkl"
