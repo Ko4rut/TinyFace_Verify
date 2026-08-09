@@ -18,9 +18,13 @@ from src.alignment.face_aligner import FaceAligner
 from src.enrollment.enrollment_sample_collector import (
     EnrollmentSampleCollector,
 )
+from src.enrollment.enrollment_service import (
+    EnrollmentService,
+)
 from src.verification.face_verification_service import (
     FaceVerificationService,
 )
+
 
 
 class CameraRuntime:
@@ -34,8 +38,9 @@ class CameraRuntime:
         face_selector: FaceSelector,
         face_validator: FaceSampleValidator,
         face_aligner: FaceAligner,
-        verification_service: FaceVerificationService,
-        enrollment_collector: EnrollmentSampleCollector = None,
+        enrollment_service: EnrollmentService | None,
+        verification_service: FaceVerificationService | None,
+        enrollment_collector: EnrollmentSampleCollector | None = None,
     ) -> None:
         self.camera = camera
         self.face_detector = face_detector
@@ -43,9 +48,11 @@ class CameraRuntime:
         self.face_selector = face_selector
         self.face_validator = face_validator
         self.face_aligner = face_aligner
-        self.enrollment_collector = enrollment_collector
+
+        self.enrollment_service = enrollment_service
         self.verification_service = verification_service
-        
+        self.enrollment_collector = enrollment_collector
+        self.verification_result = None
     @staticmethod
     def get_selection_status(
         selection: FaceSelectionResult,
@@ -212,6 +219,7 @@ class CameraRuntime:
             required_frames=self.session.required_frames,
             status=status,
             status_color=status_color,
+            verification_result=self.verification_result
         )
 
         # 10. Render
@@ -230,9 +238,9 @@ class CameraRuntime:
             if self.enrollment_collector.is_complete:
                 self._handle_completed_enrollment()
                 return True
+
         elif self.session.is_complete:
             self._handle_completed_verification()
-            return True
 
         # 12. Xử lý bàn phím
         key = cv2.waitKey(1) & 0xFF
@@ -249,22 +257,42 @@ class CameraRuntime:
     def _handle_completed_enrollment(self) -> None:
         print("Enrollment completed")
 
-        aligned_faces = self.enrollment_collector.samples
+        if self.enrollment_service is None:
+            raise RuntimeError(
+                "EnrollmentService is required in enrollment mode."
+            )
 
-        self.verification_service.enroll(
-            aligned_faces=aligned_faces,
+        self.enrollment_service.enroll(
+            aligned_faces=self.enrollment_collector.samples,
         )
         
     def _handle_completed_verification(self) -> None:
         print("Verification samples collected")
 
-        aligned_faces = self.session.get_frames()
+        if self.verification_service is None:
+            raise RuntimeError(
+                "FaceVerificationService is required "
+                "in verification mode."
+            )
 
-        # Sau này:
-        # result = self.verification_service.verify(
-        #     aligned_faces=aligned_faces,
-        # )
-        # print(result)
+        is_match, mean_error, frame_errors = (
+            self.verification_service.verify(
+                aligned_faces=self.session.get_frames(),
+            )
+        )
+
+        self.verification_result = is_match
+
+        print(f"Mean reconstruction error: {mean_error:.4f}")
+        print(f"Frame errors: {frame_errors}")
+
+        if is_match:
+            print("Verification successful: owner matched.")
+        else:
+            print("Verification failed: owner not matched.")
+
+        # Bắt đầu một lượt thu 5 frame mới.
+        self.session.reset()
     
     @property
     def is_enrollment_mode(self) -> bool:

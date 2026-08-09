@@ -20,7 +20,7 @@ class EigenfaceModel:
         self.mean_face: np.ndarray | None = None
         self.components: np.ndarray | None = None
 
-        def fit(
+    def fit(
             self,
             training_vectors: np.ndarray,
         ) -> None:
@@ -146,3 +146,26 @@ class EigenfaceModel:
             raise RuntimeError(
                 "EigenfaceModel must be fitted before transform."
             )
+    def inverse_transform(
+        self,
+        embedding: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Reconstructs a face vector from its PCA embedding.
+        """
+        if embedding.ndim != 1:
+            raise ValueError(
+                "embedding must be a 1D array."
+            )
+
+        self._ensure_fitted()
+
+        if embedding.shape[0] != self.n_components:
+            raise ValueError(
+                "embedding has an unexpected size."
+            )
+
+        return (
+            embedding @ self.components
+            + self.mean_face
+        )

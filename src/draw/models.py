@@ -12,8 +12,8 @@ class CameraRenderState:
     face_crop: np.ndarray | None
     crop_landmarks: np.ndarray | None
 
+    verification_result: bool | None
     original_landmarks: np.ndarray | None = None
-
     is_valid_sample: bool = False
     collected_count: int = 0
     required_frames: int = 0
