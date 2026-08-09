@@ -21,7 +21,8 @@ class CameraRenderer:
             required_frames= state.required_frames,
             collected_count= state.collected_count,
             status=state.status,
-            status_color=state.status_color
+            status_color=state.status_color,
+            verification_result=state.verification_result,
         )
         
     

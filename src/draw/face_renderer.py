@@ -9,6 +9,7 @@ class FaceRenderer:
     LANDMARK_COLOR = (0, 0, 255)
     TEXT_COLOR = (0, 255, 0)
     OTHER_COLOR = (128, 128, 128)
+
     @classmethod
     def draw(
         cls,
@@ -19,6 +20,7 @@ class FaceRenderer:
         status: str,
         status_color: tuple[int, int, int],
         selected_face: FaceDetection | None = None,
+        verification_result: bool | None = None,
     ) -> np.ndarray:
         annotated_frame = frame.copy()
 
@@ -29,8 +31,8 @@ class FaceRenderer:
                 frame=annotated_frame,
                 detection=detection,
                 is_selected=is_selected,
+                verification_result=verification_result,
             )
-
             cls._draw_eye_landmarks(
                 frame=annotated_frame,
                 detection=detection,
@@ -45,19 +47,31 @@ class FaceRenderer:
         )
 
         return annotated_frame
-
+    
     @staticmethod
     def _draw_detection(
         frame: np.ndarray,
         detection: FaceDetection,
         is_selected: bool,
+        verification_result: bool | None = None,
     ) -> None:
         x1, y1, x2, y2 = detection.bbox
 
-        if is_selected:
+        if is_selected and verification_result is True:
+            color = (0, 255, 0)
+            thickness = 3
+            label = "MATCHED"
+
+        elif is_selected and verification_result is False:
+            color = (0, 0, 255)
+            thickness = 3
+            label = "NOT MATCHED"
+
+        elif is_selected:
             color = FaceRenderer.SELECTED_COLOR
             thickness = 3
             label = "TARGET"
+
         else:
             color = FaceRenderer.OTHER_COLOR
             thickness = 1
@@ -74,11 +88,12 @@ class FaceRenderer:
         cv2.putText(
             frame,
             label,
-            (x1, max(20, y1 - 10)),
+            (x1, max(25, y1 - 10)),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
             color,
             2,
+            cv2.LINE_AA,
         )
     
     @classmethod
