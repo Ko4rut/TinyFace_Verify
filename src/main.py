@@ -8,7 +8,8 @@ from src.selection.rule_based_face_selector import RuleBasedFaceSelector
 from src.validation.face_sample_validator import FaceSampleValidator
 from src.alignment.face_aligner import FaceAligner
 from src.enrollment.enrollment_sample_collector import EnrollmentSampleCollector
-
+from src.verification.face_verification_service import FaceVerificationService
+from src.eigenface.preprocessor import FacePreprocessor
 camera = CameraInput(camera_index=0)
 
 # adding detector
@@ -20,6 +21,15 @@ face_detector = YuNetFaceDetector(
 )
 
 frames = FrameSession()
+preprocessor = FacePreprocessor()
+face_verify_service = FaceVerificationService(
+    preprocessor=preprocessor,
+    template_path=(
+        "models/"
+        "templates/"
+        "owner_template.pkl"
+    ),
+)
 
 # adding selector
 selector = RuleBasedFaceSelector(
@@ -46,7 +56,8 @@ runtime = CameraRuntime(
     face_selector = selector,
     face_validator=face_validator,
     face_aligner=face_aligner,
-    enrollment_collector=enrollment_collector
+    enrollment_collector=enrollment_collector,
+    verification_service= face_verify_service
 )
 
 runtime.run()

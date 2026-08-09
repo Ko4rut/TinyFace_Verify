@@ -18,6 +18,10 @@ from src.alignment.face_aligner import FaceAligner
 from src.enrollment.enrollment_sample_collector import (
     EnrollmentSampleCollector,
 )
+from src.verification.face_verification_service import (
+    FaceVerificationService,
+)
+
 
 class CameraRuntime:
     WINDOW_NAME = "TinyFace Verify"
@@ -30,6 +34,7 @@ class CameraRuntime:
         face_selector: FaceSelector,
         face_validator: FaceSampleValidator,
         face_aligner: FaceAligner,
+        verification_service: FaceVerificationService,
         enrollment_collector: EnrollmentSampleCollector = None,
     ) -> None:
         self.camera = camera
@@ -39,6 +44,7 @@ class CameraRuntime:
         self.face_validator = face_validator
         self.face_aligner = face_aligner
         self.enrollment_collector = enrollment_collector
+        self.verification_service = verification_service
         
     @staticmethod
     def get_selection_status(
@@ -244,12 +250,11 @@ class CameraRuntime:
         print("Enrollment completed")
 
         aligned_faces = self.enrollment_collector.samples
-        
+
         self.verification_service.enroll(
             aligned_faces=aligned_faces,
         )
-
-
+        
     def _handle_completed_verification(self) -> None:
         print("Verification samples collected")
 

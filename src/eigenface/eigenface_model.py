@@ -20,61 +20,61 @@ class EigenfaceModel:
         self.mean_face: np.ndarray | None = None
         self.components: np.ndarray | None = None
 
-    def fit(
-        self,
-        training_vectors: np.ndarray,
-    ) -> None:
-        """
-        Fits PCA using face vectors.
+        def fit(
+            self,
+            training_vectors: np.ndarray,
+        ) -> None:
+            """
+            Fits PCA using face vectors.
 
-        Input:
-            training_vectors:
-                Shape (n_samples, n_features).
-                Example: (400, 12544) for 112 x 112 grayscale faces.
-        """
-        if training_vectors.ndim != 2:
-            raise ValueError(
-                "training_vectors must be a 2D array."
+            Input:
+                training_vectors:
+                    Shape (n_samples, n_features).
+                    Example: (400, 12544) for 112 x 112 grayscale faces.
+            """
+            if training_vectors.ndim != 2:
+                raise ValueError(
+                    "training_vectors must be a 2D array."
+                )
+
+            n_samples, n_features = training_vectors.shape
+
+            if n_samples < 2:
+                raise ValueError(
+                    "At least two training samples are required."
+                )
+
+            max_components = min(n_samples, n_features)
+
+            if self.n_components > max_components:
+                raise ValueError(
+                    "n_components cannot be greater than "
+                    f"{max_components}."
+                )
+
+            training_vectors = training_vectors.astype(
+                np.float32,
+                copy=False,
             )
 
-        n_samples, n_features = training_vectors.shape
-
-        if n_samples < 2:
-            raise ValueError(
-                "At least two training samples are required."
+            # Mean face: shape (n_features,)
+            self.mean_face = np.mean(
+                training_vectors,
+                axis=0,
             )
 
-        max_components = min(n_samples, n_features)
-
-        if self.n_components > max_components:
-            raise ValueError(
-                "n_components cannot be greater than "
-                f"{max_components}."
+            centered_vectors = (
+                training_vectors - self.mean_face
             )
 
-        training_vectors = training_vectors.astype(
-            np.float32,
-            copy=False,
-        )
+            # Vt shape: (min(n_samples, n_features), n_features)
+            _, _, vt = np.linalg.svd(
+                centered_vectors,
+                full_matrices=False,
+            )
 
-        # Mean face: shape (n_features,)
-        self.mean_face = np.mean(
-            training_vectors,
-            axis=0,
-        )
-
-        centered_vectors = (
-            training_vectors - self.mean_face
-        )
-
-        # Vt shape: (min(n_samples, n_features), n_features)
-        _, _, vt = np.linalg.svd(
-            centered_vectors,
-            full_matrices=False,
-        )
-
-        # Each row is one principal component / eigenface.
-        self.components = vt[:self.n_components]
+            # Each row is one principal component / eigenface.
+            self.components = vt[:self.n_components]
 
     def transform(
         self,

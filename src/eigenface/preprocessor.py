@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-class DatasetPreprocessor:
+class FacePreprocessor:
     """
     Preprocessing data throught there step:
     - Convert to gray scale.
