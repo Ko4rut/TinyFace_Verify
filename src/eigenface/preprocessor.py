@@ -10,10 +10,18 @@ class FacePreprocessor:
     - Normalize pixel to range [0.0, 1.0]
     - Flatten from ndarray [112, 112] to vector [12544,]
     """
-    def __init__(self, output_size: tuple[int, int] = (112,112)) -> None:
+    def __init__(self, output_size: tuple[int, int] = (112,112),
+                clip_limit: float = 2.0,
+                tile_grid_size: tuple[int, int] = (8, 8), 
+                ) -> None:
         """
             output_size: Size of image processed
         """
+        self.clahe = cv2.createCLAHE(
+            clipLimit=clip_limit,
+            tileGridSize=tile_grid_size,
+        )
+
         self.output_size = output_size
     
     def preprocess(self, img: np.ndarray) -> np.ndarray:
@@ -52,6 +60,9 @@ class FacePreprocessor:
         """
         return img.astype(np.float32)
     
+    def _apply_clahe(self, img: np.ndarray) -> np.ndarray:
+        return self.clahe.apply(img)
+    
     def _normalize(self, img: np.ndarray) -> np.ndarray:
         """
         Normalize image to range [0.0, 1.0]
@@ -59,6 +70,7 @@ class FacePreprocessor:
         """
         return img/255.0    
     
+
     def _flatten(self, img: np.ndarray) -> np.ndarray:
         """
         Flatten image to vector (12544,)
