@@ -1,5 +1,5 @@
 from src.camera.camera_input import CameraInput
-from src.camera.camera_runtime import CameraRuntime
+from src.camera.camera_runtime_service import CameraRuntimeService
 from src.detection.yunet_detector import (
     YuNetFaceDetector,
 )
@@ -13,7 +13,7 @@ from src.eigenface.preprocessor import FacePreprocessor
 from src.eigenface.eigenface_model import EigenfaceModel
 from src.verification.face_verification_service import FaceVerificationService
 
-system_mode = "Verify"
+system_mode = "verify"
 
 camera = CameraInput(camera_index=0)
 
@@ -74,7 +74,7 @@ if system_mode == "Enrollment":
     enrollment_collector = EnrollmentSampleCollector(20,0.3)
 
 
-runtime = CameraRuntime(
+runtime = CameraRuntimeService(
     camera=camera,
     face_detector=face_detector,
     session=frames,
