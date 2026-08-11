@@ -13,7 +13,7 @@ from src.eigenface.preprocessor import FacePreprocessor
 from src.eigenface.eigenface_model import EigenfaceModel
 from src.verification.face_verification_service import FaceVerificationService
 
-system_mode = "verify"
+system_mode = "Verify"
 
 camera = CameraInput(camera_index=0)
 
