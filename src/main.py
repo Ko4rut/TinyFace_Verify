@@ -31,14 +31,14 @@ preprocessor = FacePreprocessor()
 
 # adding selector
 selector = RuleBasedFaceSelector(
-    area_weight=0.4,
+    area_weight=0.5,
     center_weight=0.3,
     ambiguity_margin=0.1,
 )
 
 # adding validator
 face_validator = FaceSampleValidator(
-    min_face_area_ratio=0.08,
+    min_face_area_ratio=0.02,
     min_edge_margin_ratio=0.05,
     min_blur_score=80.0,
 )
@@ -46,7 +46,7 @@ face_aligner = FaceAligner(output_size=(112, 112))
 
 enrollment_collector = EnrollmentSampleCollector(20,0.3)
 
-eigenface = EigenfaceModel(n_components=19)
+eigenface = EigenfaceModel(n_components=9)
 
 verify_service = FaceVerificationService(
     preprocessor=preprocessor,
@@ -56,7 +56,7 @@ verify_service = FaceVerificationService(
         "templates/"
         "owner_template.pkl"
     ),
-    error_threshold= 0.03
+    error_threshold= 0.015
 )
 
 enrollment_service = EnrollmentService(
@@ -69,10 +69,10 @@ enrollment_service = EnrollmentService(
         "owner_template.pkl"
     ))
 
+enrollment_collector = None
 if system_mode == "Enrollment":
     enrollment_collector = EnrollmentSampleCollector(20,0.3)
 
-enrollment_collector = None
 
 runtime = CameraRuntime(
     camera=camera,
