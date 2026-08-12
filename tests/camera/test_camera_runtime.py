@@ -1,231 +1,133 @@
-import pytest
 from unittest.mock import Mock, patch
+
 import numpy as np
-from src.camera.camera_runtime_service import CameraRuntime
-from pathlib import Path
+
+from src.camera.camera_runtime_service import CameraRuntimeService
+from src.capture.frame_session import FrameSession
+from src.detection.models import FaceDetection
+from src.selection.models import FaceSelectionResult, SelectionStatus
 
 
-def test_init_creates_empty_session():
-    mock_camera = Mock()
-    
-    runtime = CameraRuntime(
-        camera = mock_camera,
-        required_frames=5,
-        sample_interval=0.15,
-        session_timeout=2.0,
-    )
-    
-    assert runtime.camera is mock_camera
-    assert runtime.required_frames == 5
-    assert runtime.sample_interval == 0.15
-    assert runtime.session_timeout == 2.0
-
-    assert len(runtime.selected_frames) == 0
-    assert runtime.session_started_at is None
-    assert runtime.last_sampled_at is None
-    
-def test_reset_session_clears_all_session_data():
-    runtime = CameraRuntime(camera=Mock())
-    runtime.selected_frames.append(
-        np.zeros((10, 10, 3), dtype=np.uint8)
-    )
-    runtime.session_started_at = 10.0
-    runtime.last_sampled_at = 11.0
-    runtime.reset_session()
-    
-    assert len(runtime.selected_frames) == 0
-    assert runtime.session_started_at is None
-    assert runtime.last_sampled_at is None
-    
-def test_session_does_not_timeout_before_it_starts():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        session_timeout=2.0,
-    )
-
-    result = runtime.session_has_timed_out(now=100.0)
-
-    assert result is False
-    
-def test_session_does_not_timeout_before_it_starts():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        session_timeout=2.0,
-    )
-
-    result = runtime.session_has_timed_out(now=100.0)
-
-    assert result is False
-    
-def test_session_does_not_timeout_before_limit():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        session_timeout=2.0,
-    )
-    runtime.session_started_at = 10.0
-
-    result = runtime.session_has_timed_out(now=11.9)
-
-    assert result is False
-    
-def test_session_times_out_at_limit():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        session_timeout=2.0,
-    )
-    runtime.session_started_at = 10.0
-
-    result = runtime.session_has_timed_out(now=12.0)
-
-    assert result is True
-    
-def test_should_sample_first_frame():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        sample_interval=0.15,
-    )
-
-    result = runtime.should_sample(now=10.0)
-
-    assert result is True
-    
-def test_should_not_sample_before_interval():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        sample_interval=0.15,
-    )
-    runtime.last_sampled_at = 10.0
-
-    result = runtime.should_sample(now=10.14)
-
-    assert result is False
-    
-def test_should_sample_at_interval():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        sample_interval=1.0,
-    )
-    runtime.last_sampled_at = 10.0
-
-    assert runtime.should_sample(now=11.0) is True
-    
-def test_collect_first_frame_starts_session():
-    runtime = CameraRuntime(camera=Mock())
-    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
-
-    runtime.collect_frame(fake_frame, now=20.0)
-
-    assert len(runtime.selected_frames) == 1
-    assert runtime.session_started_at == 20.0
-    assert runtime.last_sampled_at == 20.0
-    
-def test_collect_next_frame_keeps_original_start_time():
-    runtime = CameraRuntime(camera=Mock())
-    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
-
-    runtime.collect_frame(fake_frame, now=20.0)
-    runtime.collect_frame(fake_frame, now=20.5)
-
-    assert len(runtime.selected_frames) == 2
-    assert runtime.session_started_at == 20.0
-    assert runtime.last_sampled_at == 20.5
-    
-def test_collect_frame_stores_independent_copy():
-    runtime = CameraRuntime(camera=Mock())
-    original_frame = np.zeros((10, 10, 3), dtype=np.uint8)
-
-    runtime.collect_frame(original_frame, now=20.0)
-
-    original_frame[0, 0] = [255, 255, 255]
-
-    stored_frame = runtime.selected_frames[0]
-
-    assert np.array_equal(
-        stored_frame[0, 0],
-        [0, 0, 0],
-    )
-    
-def test_session_is_not_complete_with_four_frames():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        required_frames=5,
-    )
-    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
-
-    for index in range(4):
-        runtime.collect_frame(fake_frame, now=float(index))
-
-    assert runtime.is_session_complete() is False
-    
-def test_session_is_complete_with_five_frames():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        required_frames=5,
-    )
-    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
-
-    for index in range(5):
-        runtime.collect_frame(fake_frame, now=float(index))
-
-    assert runtime.is_session_complete() is True    
-    
-def test_selected_frames_does_not_exceed_required_frames():
-    runtime = CameraRuntime(
-        camera=Mock(),
-        required_frames=5,
-    )
-
-    for index in range(6):
-        frame = np.full(
-            (2, 2, 3),
-            fill_value=index,
-            dtype=np.uint8,
-        )
-        runtime.collect_frame(frame, now=float(index))
-
-    assert len(runtime.selected_frames) == 5
-
-    first_remaining_frame = runtime.selected_frames[0]
-
-    assert np.all(first_remaining_frame == 1)
-
-
-@patch("src.camera_runtime.cv2.destroyAllWindows")
-@patch("src.camera_runtime.cv2.waitKey", return_value=ord("q"))
-@patch("src.camera_runtime.cv2.imshow")
-@patch("src.camera_runtime.CameraRenderer.render")
-def test_run_delegates_preview_rendering_to_camera_renderer(
-    mock_render,
-    mock_imshow,
-    _mock_wait_key,
-    _mock_destroy_windows,
-):
-    raw_frame = np.zeros((10, 10, 3), dtype=np.uint8)
-    rendered_frame = np.ones((10, 10, 3), dtype=np.uint8)
+def make_runtime(
+    *,
+    session: FrameSession | None = None,
+    enrollment_collector=None,
+) -> tuple[CameraRuntimeService, Mock, Mock, Mock, Mock, Mock]:
+    """Create a runtime with all external collaborators mocked."""
     camera = Mock()
-    camera.face_from_camera.return_value = iter([raw_frame])
-    face_detector = Mock()
-    face_detector.detect.return_value = []
-    mock_render.return_value = rendered_frame
-    runtime = CameraRuntime(
+    detector = Mock()
+    selector = Mock()
+    validator = Mock()
+    aligner = Mock()
+    enrollment_service = Mock()
+    verification_service = Mock()
+
+    runtime = CameraRuntimeService(
         camera=camera,
-        face_detector=face_detector,
-        required_frames=5,
+        face_detector=detector,
+        session=session or FrameSession(),
+        face_selector=selector,
+        face_validator=validator,
+        face_aligner=aligner,
+        enrollment_collector=enrollment_collector,
+        enrollment_service=enrollment_service,
+        verification_service=verification_service,
     )
+
+    return (
+        runtime,
+        camera,
+        detector,
+        selector,
+        validator,
+        aligner,
+    )
+
+
+def make_face() -> FaceDetection:
+    return FaceDetection(
+        bbox=(10, 10, 40, 40),
+        confidence=0.99,
+        landmarks=np.array(
+            [[15, 18], [35, 18], [25, 25], [18, 33], [32, 33]],
+            dtype=np.float32,
+        ),
+    )
+
+
+@patch("src.camera.camera_runtime_service.cv2.destroyAllWindows")
+@patch("src.camera.camera_runtime_service.cv2.waitKey", return_value=ord("q"))
+@patch("src.camera.camera_runtime_service.cv2.imshow")
+@patch("src.camera.camera_runtime_service.cv2.flip", side_effect=lambda frame, _: frame)
+@patch("src.camera.camera_runtime_service.CameraRenderer.render")
+def test_run_renders_no_face_frame_and_closes_camera(
+    mock_render: Mock,
+    _mock_flip: Mock,
+    mock_imshow: Mock,
+    _mock_wait_key: Mock,
+    mock_destroy_windows: Mock,
+) -> None:
+    runtime, camera, detector, selector, validator, aligner = make_runtime()
+    raw_frame = np.zeros((20, 30, 3), dtype=np.uint8)
+    rendered_frame = np.ones((20, 30, 3), dtype=np.uint8)
+    camera.face_from_camera.return_value = iter([raw_frame])
+    detector.detect.return_value = []
+    selector.select.return_value = FaceSelectionResult(SelectionStatus.NO_FACE)
+    mock_render.return_value = rendered_frame
 
     runtime.run()
 
-    preview = face_detector.detect.call_args.args[0]
-    mock_render.assert_called_once_with(
-        preview,
-        [],
-        0,
-        5,
-        "No face detected",
-        (0, 0, 255),
-    )
-    mock_imshow.assert_called_once_with(
-        "TinyFace Verify",
-        rendered_frame,
-    )
+    detector.detect.assert_called_once_with(raw_frame)
+    selector.select.assert_called_once_with(detections=[], frame_shape=raw_frame.shape)
+    validator.validate.assert_not_called()
+    aligner.align.assert_not_called()
+    mock_imshow.assert_called_once_with(runtime.WINDOW_NAME, rendered_frame)
     camera.close.assert_called_once_with()
+    mock_destroy_windows.assert_called_once_with()
+
+
+def test_analyze_frame_does_not_align_invalid_selected_face() -> None:
+    runtime, _, detector, selector, validator, aligner = make_runtime()
+    frame = np.zeros((100, 100, 3), dtype=np.uint8)
+    face = make_face()
+    detector.detect.return_value = [face]
+    selector.select.return_value = FaceSelectionResult(SelectionStatus.SELECTED, face)
+    validator.validate.return_value = False
+
+    analysis = runtime._analyze_frame(frame)
+
+    assert analysis.selected_face is face
+    assert analysis.alignment_result is None
+    assert analysis.is_sample_ready is False
+    validator.validate.assert_called_once_with(frame=frame, face=face)
+    aligner.align.assert_not_called()
+
+
+def test_completed_verification_resets_session_and_records_result() -> None:
+    session = FrameSession(required_frames=1)
+    runtime, _, _, _, _, _ = make_runtime(session=session)
+    sample = np.zeros((112, 112, 3), dtype=np.uint8)
+    session.add(sample, now=5.0)
+    runtime.verification_service.verify.return_value = (
+        True,
+        0.01,
+        np.array([0.01], dtype=np.float32),
+    )
+
+    runtime._handle_completed_verification()
+
+    runtime.verification_service.verify.assert_called_once()
+    assert runtime.verification_result is True
+    assert session.collected_count == 0
+
+
+def test_completed_enrollment_requires_enrollment_service() -> None:
+    runtime, _, _, _, _, _ = make_runtime(enrollment_collector=Mock())
+    runtime.enrollment_service = None
+
+    try:
+        runtime._handle_completed_enrollment()
+    except RuntimeError as error:
+        assert str(error) == "EnrollmentService is required in enrollment mode."
+    else:
+        raise AssertionError("Expected enrollment without service to fail")
