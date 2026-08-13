@@ -13,7 +13,8 @@ from src.eigenface.preprocessor import FacePreprocessor
 from src.eigenface.eigenface_model import EigenfaceModel
 from src.verification.face_verification_service import FaceVerificationService
 
-system_mode = "verify"
+system_mode = "Enrollment"
+system_mode = "Verify"
 
 camera = CameraInput(camera_index=0)
 
@@ -56,7 +57,7 @@ verify_service = FaceVerificationService(
         "templates/"
         "owner_template.pkl"
     ),
-    error_threshold= 0.015
+    error_threshold= 0.02
 )
 
 enrollment_service = EnrollmentService(

@@ -29,13 +29,14 @@ class FacePreprocessor:
         PreProcess workflow function.
         img: Image input to preproceesing
         """
-        img_cvt_grayscale = self._to_grayscale(img)
-        img_resized = self._resize(img_cvt_grayscale)
-        img_cvt_float32 = self._to_float32(img_resized)
-        img_Norm = self._normalize(img_cvt_float32)
-        img_processed = self._flatten(img_Norm)
-        return img_processed
-    
+        gray_img = self._to_grayscale(img)
+        resized_img = self._resize(gray_img)
+        enhanced_img = self._apply_clahe(resized_img)
+        normalized_img = self._normalize(
+            self._to_float32(enhanced_img)
+        )
+        return self._flatten(normalized_img)
+        
     
     def _to_grayscale(self, img: np.ndarray) -> np.ndarray:
         """

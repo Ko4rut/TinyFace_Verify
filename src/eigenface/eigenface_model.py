@@ -8,15 +8,10 @@ class EigenfaceModel:
 
     def __init__(
         self,
-        n_components: int = 100,
+        n_components: int,
     ) -> None:
-        if n_components <= 0:
-            raise ValueError(
-                "n_components must be positive."
-            )
-
+        
         self.n_components = n_components
-
         self.mean_face: np.ndarray | None = None
         self.components: np.ndarray | None = None
 
@@ -32,11 +27,7 @@ class EigenfaceModel:
                     Shape (n_samples, n_features).
                     Example: (400, 12544) for 112 x 112 grayscale faces.
             """
-            if training_vectors.ndim != 2:
-                raise ValueError(
-                    "training_vectors must be a 2D array."
-                )
-
+            
             n_samples, n_features = training_vectors.shape
 
             if n_samples < 2:
@@ -44,7 +35,7 @@ class EigenfaceModel:
                     "At least two training samples are required."
                 )
 
-            max_components = min(n_samples, n_features)
+            max_components = min(n_samples-1, n_features)
 
             if self.n_components > max_components:
                 raise ValueError(

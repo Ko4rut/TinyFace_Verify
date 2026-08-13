@@ -39,13 +39,20 @@ class EnrollmentService:
                 "At least two aligned faces are required."
             )
 
-        face_vectors = np.stack(
-            [
-                self.preprocessor.preprocess(face)
-                for face in aligned_faces
-            ],
-            axis=0,
-        ).astype(np.float32)
+        processed_faces = []
+        
+        for face in aligned_faces:
+            processed_face = self.preprocessor.preprocess(face)
+            processed_faces.append(processed_face)
+        
+        face_vectors = np.array(processed_faces)
+        # face_vectors = np.stack(
+        #     [
+        #         self.preprocessor.preprocess(face)
+        #         for face in aligned_faces
+        #     ],
+        #     axis=0,
+        # ).astype(np.float32)
 
         self.eigenface_model.fit(face_vectors)
 
