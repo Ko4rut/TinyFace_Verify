@@ -57,7 +57,7 @@ verify_service = FaceVerificationService(
         "templates/"
         "owner_template.pkl"
     ),
-    error_threshold= 0.02
+    error_threshold= 0.03
 )
 
 enrollment_service = EnrollmentService(
