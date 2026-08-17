@@ -196,4 +196,5 @@ data/raw/         ATT Faces benchmark dataset
 ## Related Documentation
 
 - [Evaluation workflow](docs/evaluation.md)
+- [Project roadmap](TODO.md)
 - [OpenCV YuNet model](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
