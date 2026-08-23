@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 
-from src.camera.camera_runtime_service import CameraRuntimeService
+from src.services.camera_runtime_service import CameraRuntimeService
 from src.capture.frame_session import FrameSession
 from src.detection.models import FaceDetection
 from src.selection.models import FaceSelectionResult, SelectionStatus
@@ -55,11 +55,11 @@ def make_face() -> FaceDetection:
     )
 
 
-@patch("src.camera.camera_runtime_service.cv2.destroyAllWindows")
-@patch("src.camera.camera_runtime_service.cv2.waitKey", return_value=ord("q"))
-@patch("src.camera.camera_runtime_service.cv2.imshow")
-@patch("src.camera.camera_runtime_service.cv2.flip", side_effect=lambda frame, _: frame)
-@patch("src.camera.camera_runtime_service.CameraRenderer.render")
+@patch("src.services.camera_runtime_service.cv2.destroyAllWindows")
+@patch("src.services.camera_runtime_service.cv2.waitKey", return_value=ord("q"))
+@patch("src.services.camera_runtime_service.cv2.imshow")
+@patch("src.services.camera_runtime_service.cv2.flip", side_effect=lambda frame, _: frame)
+@patch("src.services.camera_runtime_service.CameraRenderer.render")
 def test_run_renders_no_face_frame_and_closes_camera(
     mock_render: Mock,
     _mock_flip: Mock,

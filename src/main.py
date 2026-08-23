@@ -1,5 +1,5 @@
 from src.camera.camera_input import CameraInput
-from src.camera.camera_runtime_service import CameraRuntimeService
+from src.services.camera_runtime_service import CameraRuntimeService
 from src.detection.yunet_detector import (
     YuNetFaceDetector,
 )
@@ -8,10 +8,10 @@ from src.selection.rule_based_face_selector import RuleBasedFaceSelector
 from src.validation.face_sample_validator import FaceSampleValidator
 from src.alignment.face_aligner import FaceAligner
 from src.enrollment.enrollment_sample_collector import EnrollmentSampleCollector
-from src.enrollment.enrollment_service import EnrollmentService
+from src.services.enrollment_service import EnrollmentService
 from src.eigenface.preprocessor import FacePreprocessor
 from src.eigenface.eigenface_model import EigenfaceModel
-from src.verification.face_verification_service import FaceVerificationService
+from src.services.face_verification_service import FaceVerificationService
 
 system_mode = "Enrollment"
 system_mode = "Verify"

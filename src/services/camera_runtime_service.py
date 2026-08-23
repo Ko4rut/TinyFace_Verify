@@ -13,11 +13,11 @@ from src.detection.yunet_detector import YuNetFaceDetector
 from src.draw.camera_renderer_services import CameraRenderer
 from src.camera.camera_render_state_builder import CameraRenderStateBuilder
 from src.enrollment.enrollment_sample_collector import EnrollmentSampleCollector
-from src.enrollment.enrollment_service import EnrollmentService
+from src.services.enrollment_service import EnrollmentService
 from src.selection.face_selector import FaceSelector
 from src.selection.models import SelectionStatus
 from src.validation.face_sample_validator import FaceSampleValidator
-from src.verification.face_verification_service import FaceVerificationService
+from src.services.face_verification_service import FaceVerificationService
 
 
 class CameraRuntimeService:
