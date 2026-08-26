@@ -1,9 +1,36 @@
 # TinyFace Verify
 
-TinyFace Verify is a local 1:1 face-verification prototype built with OpenCV,
-YuNet, and Eigenfaces/PCA. The project is intended to explore and evaluate a
-lightweight biometric-verification pipeline; it is not a production security
-product.
+![TinyFace Verify pipeline: face capture, landmarks, alignment, Eigenfaces/PCA, and verification](docs/assets/tinyface-verify-pipeline.png)
+
+TinyFace Verify is a local, lightweight **1:1 face-verification** prototype
+built with OpenCV, YuNet, and Eigenfaces/PCA. It is a learning project for
+understanding image processing and classical machine-learning techniques—not a
+production biometric-security product.
+
+The project deliberately starts with the fundamentals rather than a large
+pretrained deep-learning model. It walks through a complete face-verification
+pipeline: collecting face images, validating and aligning them, modeling faces
+with PCA/Eigenfaces, enrolling an owner, and verifying a new camera frame.
+
+## Why This Project
+
+I built TinyFace Verify to learn how an end-to-end computer-vision system is
+put together and to explore the classical ideas behind **Eigenfaces**. The aim
+is to make each stage observable and understandable:
+
+```text
+Collect -> Detect -> Validate -> Align -> Preprocess -> Model -> Enroll -> Verify
+```
+
+Although Eigenfaces is a small classical model, the resulting pipeline is
+compact, fast to run locally, and a useful fit for experimenting on
+resource-constrained or edge devices.
+
+## Acknowledgment
+
+This project was developed with guidance from **Nguyen Trong Van**, a mentor
+with expertise in image processing. His feedback helped shape both the
+technical approach and the learning process behind this implementation.
 
 > Warning: the system has no liveness detection, is sensitive to illumination,
 > and currently persists PCA templates with pickle. Do not use it for unlocking,
@@ -133,7 +160,22 @@ The output includes:
 | `FRR` | The rate at which the enrolled owner is rejected. Lower is better. |
 | `BER` | The mean of FAR and FRR. |
 
-Current baseline for `s1`:
+### AT&T Faces Baseline
+
+The following snapshot comes from the bundled AT&T Faces dataset for owner
+label `1` (`s1`). It is a small, controlled benchmark intended to evaluate the
+pipeline and threshold-selection workflow.
+
+| Evaluation item | Result |
+| --- | ---: |
+| Owner label | `1` |
+| Genuine samples | 5 |
+| Impostor samples | 390 |
+| False accept rate (FAR) | 0.77% |
+| False reject rate (FRR) | 0.00% |
+| Balanced error rate (BER) | 0.38% |
+
+Current baseline threshold for `s1`:
 
 ```text
 Recommended threshold: 0.036637
@@ -142,7 +184,7 @@ False reject rate: 0.00%
 Balanced error rate: 0.38%
 ```
 
-This number is only a PCA baseline on ATT Faces. Do not use this threshold
+These numbers are only a PCA baseline on ATT Faces. Do not use this threshold
 directly in the runtime: the default evaluation uses five images and four
 components, while the runtime uses 20 images and nine components. See
 [docs/evaluation.md](docs/evaluation.md) for the complete workflow.
